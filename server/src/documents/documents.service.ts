@@ -45,9 +45,15 @@ export class DocumentsService {
 
     const org = this.org();
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
-    doc.fontSize(16).text('Договор аренды', { align: 'center' });
+    // Try to use Windows fonts with Cyrillic support
+    try {
+      doc.registerFont('Arial', 'C:/Windows/Fonts/arial.ttf');
+      doc.registerFont('Arial-Bold', 'C:/Windows/Fonts/arialbd.ttf');
+      doc.font('Arial');
+    } catch {}
+    doc.font('Arial-Bold').fontSize(16).text('Договор аренды', { align: 'center' });
     doc.moveDown();
-    doc.fontSize(10);
+    doc.font('Arial').fontSize(10);
     doc.text(`${org.name}, УНП ${org.unp}`);
     doc.text(`Адрес: ${org.address}`);
     doc.text(`Тел.: ${org.phone}, E-mail: ${org.email}`);
@@ -92,9 +98,14 @@ export class DocumentsService {
     const total = Number(inv.accrual.total);
 
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
-    doc.fontSize(16).text('Акт оказанных услуг', { align: 'center' });
+    try {
+      doc.registerFont('Arial', 'C:/Windows/Fonts/arial.ttf');
+      doc.registerFont('Arial-Bold', 'C:/Windows/Fonts/arialbd.ttf');
+      doc.font('Arial');
+    } catch {}
+    doc.font('Arial-Bold').fontSize(16).text('Акт оказанных услуг', { align: 'center' });
     doc.moveDown();
-    doc.fontSize(10);
+    doc.font('Arial').fontSize(10);
     doc.text(`${org.name}, УНП ${org.unp}`);
     doc.text(`Адрес: ${org.address}`);
     doc.text(`Тел.: ${org.phone}, E-mail: ${org.email}`);
@@ -128,22 +139,46 @@ export class DocumentsService {
         {
           properties: {},
           children: [
-            new Docx.Paragraph({ children: [new Docx.TextRun({ text: 'Договор аренды', bold: true, size: 28 })], spacing: { after: 200 } }),
-            new Docx.Paragraph(`${org.name}, УНП ${org.unp}`),
-            new Docx.Paragraph(`Адрес: ${org.address}`),
-            new Docx.Paragraph(`Тел.: ${org.phone}, E-mail: ${org.email}`),
-            new Docx.Paragraph(`Реквизиты: ${org.iban} (${org.bank})`),
+            new Docx.Paragraph({ children: [new Docx.TextRun({ text: 'Договор аренды', bold: true, size: 28 })], spacing: { after: 300 } }),
+            // Информационный блок в таблице
+            new Docx.Table({
+              width: { size: 100, type: Docx.WidthType.PERCENTAGE },
+              rows: [
+                new Docx.TableRow({
+                  children: [
+                    new Docx.TableCell({ children: [new Docx.Paragraph(new Docx.TextRun({ text: 'Арендодатель', bold: true }))] }),
+                    new Docx.TableCell({ children: [
+                      new Docx.Paragraph(org.name),
+                      new Docx.Paragraph(`УНП: ${org.unp}`),
+                      new Docx.Paragraph(`Адрес: ${org.address}`),
+                      new Docx.Paragraph(`Тел.: ${org.phone}, E-mail: ${org.email}`),
+                      new Docx.Paragraph(`Реквизиты: ${org.iban} (${org.bank})`),
+                    ] }),
+                  ],
+                }),
+                new Docx.TableRow({
+                  children: [
+                    new Docx.TableCell({ children: [new Docx.Paragraph(new Docx.TextRun({ text: 'Арендатор', bold: true }))] }),
+                    new Docx.TableCell({ children: [
+                      new Docx.Paragraph(lease.tenant.name),
+                      new Docx.Paragraph(lease.tenant.unp ? `УНП: ${lease.tenant.unp}` : ''),
+                    ] }),
+                  ],
+                }),
+              ],
+            }),
             new Docx.Paragraph(''),
-            new Docx.Paragraph(`Арендатор: ${lease.tenant.name}`),
-            new Docx.Paragraph(lease.tenant.unp ? `УНП арендатора: ${lease.tenant.unp}` : ''),
-            new Docx.Paragraph(''),
-            new Docx.Paragraph(`Предмет аренды: помещение${lease.premise.code ? ` (${lease.premise.code})` : ''}, адрес: ${lease.premise.address}`),
-            new Docx.Paragraph(`Площадь, м²: ${Number(lease.premise.area)}`),
-            new Docx.Paragraph(`Период: с ${String(lease.periodFrom).slice(0,10)}${lease.periodTo ? ' по ' + String(lease.periodTo).slice(0,10) : ''}`),
-            new Docx.Paragraph(`База тарифа: ${lease.base}`),
-            new Docx.Paragraph(lease.deposit ? `Депозит: ${Number(lease.deposit)} BYN` : ''),
-            new Docx.Paragraph(`Срок оплаты: до ${lease.dueDay} числа месяца`),
-            new Docx.Paragraph(`Пени: ${Number(lease.penaltyRatePerDay)}% в день`),
+            new Docx.Table({
+              width: { size: 100, type: Docx.WidthType.PERCENTAGE },
+              rows: [
+                new Docx.TableRow({ children: [ new Docx.TableCell({ children:[ new Docx.Paragraph('Помещение') ] }), new Docx.TableCell({ children:[ new Docx.Paragraph(`${lease.premise.code ? lease.premise.code + ' — ' : ''}${lease.premise.address}`) ] }) ] }),
+                new Docx.TableRow({ children: [ new Docx.TableCell({ children:[ new Docx.Paragraph('Площадь, м²') ] }), new Docx.TableCell({ children:[ new Docx.Paragraph(String(Number(lease.premise.area))) ] }) ] }),
+                new Docx.TableRow({ children: [ new Docx.TableCell({ children:[ new Docx.Paragraph('Период') ] }), new Docx.TableCell({ children:[ new Docx.Paragraph(`с ${String(lease.periodFrom).slice(0,10)}${lease.periodTo ? ' по ' + String(lease.periodTo).slice(0,10) : ''}`) ] }) ] }),
+                new Docx.TableRow({ children: [ new Docx.TableCell({ children:[ new Docx.Paragraph('База тарифа') ] }), new Docx.TableCell({ children:[ new Docx.Paragraph(lease.base) ] }) ] }),
+                new Docx.TableRow({ children: [ new Docx.TableCell({ children:[ new Docx.Paragraph('Срок оплаты') ] }), new Docx.TableCell({ children:[ new Docx.Paragraph(`до ${lease.dueDay} числа месяца`) ] }) ] }),
+                new Docx.TableRow({ children: [ new Docx.TableCell({ children:[ new Docx.Paragraph('Пени') ] }), new Docx.TableCell({ children:[ new Docx.Paragraph(`${Number(lease.penaltyRatePerDay)}% в день`) ] }) ] }),
+              ],
+            }),
             new Docx.Paragraph(''),
             new Docx.Paragraph('Подписи сторон:'),
             new Docx.Paragraph(`${org.name} ____________________`),
