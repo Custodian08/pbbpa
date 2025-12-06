@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -34,5 +34,23 @@ export class PaymentsController {
   @Roles('OPERATOR', 'ADMIN')
   import(@Body() dtos: CreatePaymentDto[]) {
     return this.service.import(dtos);
+  }
+
+  @Get('unresolved')
+  @Roles('OPERATOR', 'ADMIN')
+  unresolved() {
+    return this.service.listUnresolved();
+  }
+
+  @Post(':id/apply')
+  @Roles('OPERATOR', 'ADMIN')
+  apply(@Param('id') id: string, @Body() body: { invoiceNumber: string }) {
+    return this.service.apply(id, body.invoiceNumber);
+  }
+
+  @Post(':id/refund')
+  @Roles('OPERATOR', 'ADMIN')
+  refund(@Param('id') id: string) {
+    return this.service.refund(id);
   }
 }

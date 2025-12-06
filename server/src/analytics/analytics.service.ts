@@ -58,4 +58,20 @@ export class AnalyticsService {
     }
     return buckets;
   }
+
+  async kpi() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const [occ, accruals, payments, aging] = await Promise.all([
+      this.occupancy(),
+      this.prisma.accrual.aggregate({ _sum: { total: true }, where: { period: { gte: start, lte: end } } }),
+      this.prisma.payment.aggregate({ _sum: { amount: true as any }, where: { date: { gte: start, lte: end } } }),
+      this.aging(),
+    ]);
+    const accrualMonth = Number(accruals._sum.total || 0);
+    const paymentsMonth = Number((payments as any)._sum.amount || 0);
+    const agingTotal = Object.values(aging).reduce((s, v) => s + v, 0);
+    return { occupancy: occ, accrualMonth, paymentsMonth, aging, agingTotal };
+  }
 }

@@ -14,6 +14,14 @@ function parsePeriod(period: string) {
 export class BillingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async getVatRateForDate(date: Date): Promise<number> {
+    const s = await this.prisma.vatSetting.findFirst({
+      where: { validFrom: { lte: date } },
+      orderBy: { validFrom: 'desc' },
+    });
+    return s ? (Number(s.rate)) : 20;
+  }
+
   async run(dto: RunBillingDto) {
     const { start, end, y, m } = parsePeriod(dto.period);
 
@@ -54,7 +62,7 @@ export class BillingService {
       }
 
       const baseAmount = lease.base === ('M2' as RateType) ? area * baseRate : baseRate;
-      const vatRate = Number(lease.vatRate);
+      const vatRate = lease.vatRate != null ? Number(lease.vatRate) : await this.getVatRateForDate(start);
       const vatAmount = +(baseAmount * (vatRate / 100)).toFixed(2);
       const total = +(baseAmount + vatAmount).toFixed(2);
 

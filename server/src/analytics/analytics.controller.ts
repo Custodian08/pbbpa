@@ -19,4 +19,9 @@ export class AnalyticsController {
   aging() {
     return this.svc.aging();
   }
+
+  @Get('kpi')
+  kpi() {
+    return this.svc.kpi();
+  }
 }

@@ -36,6 +36,9 @@ export const PremisesPage: React.FC = () => {
   });
 
   const [open, setOpen] = React.useState(false);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importCsv, setImportCsv] = React.useState('');
+  const [importing, setImporting] = React.useState(false);
   const [form] = Form.useForm();
   const [q, setQ] = React.useState('');
   const [type, setType] = React.useState<string | undefined>(undefined);
@@ -73,6 +76,39 @@ export const PremisesPage: React.FC = () => {
     a.href = dataUrl; a.download = 'premises.png'; a.click();
   };
 
+  // Парсинг CSV и импорт
+  const parseCsv = (csv: string) => {
+    const lines = csv.trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) return [];
+    const header = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+      const cols = line.split(',').map(c => c.trim());
+      const rec: any = {};
+      header.forEach((h, i) => { rec[h] = cols[i] ?? ''; });
+      if (rec.floor !== '' && rec.floor !== undefined) rec.floor = Number(rec.floor);
+      if (rec.area !== '' && rec.area !== undefined) rec.area = Number(rec.area);
+      if (rec.baseRate !== '' && rec.baseRate !== undefined) rec.baseRate = Number(rec.baseRate);
+      return rec;
+    });
+  };
+
+  const doImport = async () => {
+    try {
+      setImporting(true);
+      const rows = parseCsv(importCsv);
+      const res = await api.post('/premises/import', rows);
+      const ok = Number(res.data?.imported || 0);
+      message.success(`Импорт завершен: ${ok}/${rows.length}`);
+      setImportOpen(false);
+      setImportCsv('');
+      await qc.invalidateQueries({ queryKey: ['premises'] });
+    } catch {
+      message.error('Ошибка импорта');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const remove = (id: string) => {
     modal.confirm({
       title: 'Удалить помещение?', okText: 'Да', cancelText: 'Нет',
@@ -97,6 +133,7 @@ export const PremisesPage: React.FC = () => {
     <Card title="Помещения" extra={<Space>
       <Button onClick={exportPng}>Экспорт PNG</Button>
       <Button onClick={downloadCsv}>Шаблон premises.csv</Button>
+      <Button onClick={()=> setImportOpen(true)}>Импорт CSV</Button>
       <Button type="primary" onClick={() => setOpen(true)}>Добавить</Button>
     </Space>}>
       <Space style={{ marginBottom: 12 }} wrap>
@@ -159,6 +196,11 @@ export const PremisesPage: React.FC = () => {
             </Form.Item>
           </Space.Compact>
         </Form>
+      </Modal>
+
+      <Modal open={importOpen} title="Импорт помещений (CSV)" onCancel={()=> setImportOpen(false)} onOk={doImport} okText="Импортировать" confirmLoading={importing}>
+        <p>Вставьте CSV с заголовком: code,type,address,floor,area,rateType,baseRate,status,availableFrom</p>
+        <Input.TextArea rows={8} value={importCsv} onChange={(e)=> setImportCsv(e.target.value)} placeholder="A-101,OFFICE,г. Минск...,5,45.5,M2,25.00,FREE,2025-01-01" />
       </Modal>
     </Card>
   );

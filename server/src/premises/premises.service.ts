@@ -67,4 +67,17 @@ export class PremisesService {
     await this.prisma.premise.delete({ where: { id } });
     return { ok: true };
   }
+
+  async import(dtos: CreatePremiseDto[]) {
+    const results: Array<{ ok: boolean; id?: string; reason?: string }> = [];
+    for (const row of dtos) {
+      try {
+        const created = await this.create(row);
+        results.push({ ok: true, id: created.id });
+      } catch (e: any) {
+        results.push({ ok: false, reason: e?.message ?? 'error' });
+      }
+    }
+    return { imported: results.filter(r=> r.ok).length, total: dtos.length, results };
+  }
 }

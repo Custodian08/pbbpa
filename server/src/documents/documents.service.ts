@@ -2,7 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import PDFDocument from 'pdfkit';
-import { Document as DocxDocument, Packer, Paragraph, TextRun } from 'docx';
+// ВАЖНО: берём docx через require и используем any, чтобы обойти несовместимость типов
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Docx: any = require('docx');
 
 function bufferFromPdf(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -60,7 +62,9 @@ export class DocumentsService {
     const code = lease.premise.code ? ` (${lease.premise.code})` : '';
     doc.text(`Предмет аренды: помещение${code}, адрес: ${addr}`);
     doc.text(`Площадь, м²: ${Number(lease.premise.area)}`);
-    doc.text(`Период: с ${lease.periodFrom.toISOString().slice(0,10)}${lease.periodTo ? ' по ' + lease.periodTo.toISOString().slice(0,10) : ''}`);
+    const pf = new Date(lease.periodFrom as any);
+    const pt = lease.periodTo ? new Date(lease.periodTo as any) : null;
+    doc.text(`Период: с ${pf.toISOString().slice(0,10)}${pt ? ' по ' + pt.toISOString().slice(0,10) : ''}`);
     doc.text(`База тарифа: ${lease.base}`);
     if (lease.deposit) doc.text(`Депозит: ${Number(lease.deposit)} BYN`);
     doc.text(`Срок оплаты: до ${lease.dueDay} числа месяца`);
@@ -119,36 +123,36 @@ export class DocumentsService {
     if (!lease) throw new NotFoundException('Lease not found');
     const org = this.org();
 
-    const doc = new DocxDocument({
+    const doc = new Docx.Document({
       sections: [
         {
           properties: {},
           children: [
-            new Paragraph({ children: [new TextRun({ text: 'Договор аренды', bold: true, size: 28 })], spacing: { after: 200 } }),
-            new Paragraph(`${org.name}, УНП ${org.unp}`),
-            new Paragraph(`Адрес: ${org.address}`),
-            new Paragraph(`Тел.: ${org.phone}, E-mail: ${org.email}`),
-            new Paragraph(`Реквизиты: ${org.iban} (${org.bank})`),
-            new Paragraph(''),
-            new Paragraph(`Арендатор: ${lease.tenant.name}`),
-            new Paragraph(lease.tenant.unp ? `УНП арендатора: ${lease.tenant.unp}` : ''),
-            new Paragraph(''),
-            new Paragraph(`Предмет аренды: помещение${lease.premise.code ? ` (${lease.premise.code})` : ''}, адрес: ${lease.premise.address}`),
-            new Paragraph(`Площадь, м²: ${Number(lease.premise.area)}`),
-            new Paragraph(`Период: с ${String(lease.periodFrom).slice(0,10)}${lease.periodTo ? ' по ' + String(lease.periodTo).slice(0,10) : ''}`),
-            new Paragraph(`База тарифа: ${lease.base}`),
-            new Paragraph(lease.deposit ? `Депозит: ${Number(lease.deposit)} BYN` : ''),
-            new Paragraph(`Срок оплаты: до ${lease.dueDay} числа месяца`),
-            new Paragraph(`Пени: ${Number(lease.penaltyRatePerDay)}% в день`),
-            new Paragraph(''),
-            new Paragraph('Подписи сторон:'),
-            new Paragraph(`${org.name} ____________________`),
-            new Paragraph(`Арендатор ____________________`),
+            new Docx.Paragraph({ children: [new Docx.TextRun({ text: 'Договор аренды', bold: true, size: 28 })], spacing: { after: 200 } }),
+            new Docx.Paragraph(`${org.name}, УНП ${org.unp}`),
+            new Docx.Paragraph(`Адрес: ${org.address}`),
+            new Docx.Paragraph(`Тел.: ${org.phone}, E-mail: ${org.email}`),
+            new Docx.Paragraph(`Реквизиты: ${org.iban} (${org.bank})`),
+            new Docx.Paragraph(''),
+            new Docx.Paragraph(`Арендатор: ${lease.tenant.name}`),
+            new Docx.Paragraph(lease.tenant.unp ? `УНП арендатора: ${lease.tenant.unp}` : ''),
+            new Docx.Paragraph(''),
+            new Docx.Paragraph(`Предмет аренды: помещение${lease.premise.code ? ` (${lease.premise.code})` : ''}, адрес: ${lease.premise.address}`),
+            new Docx.Paragraph(`Площадь, м²: ${Number(lease.premise.area)}`),
+            new Docx.Paragraph(`Период: с ${String(lease.periodFrom).slice(0,10)}${lease.periodTo ? ' по ' + String(lease.periodTo).slice(0,10) : ''}`),
+            new Docx.Paragraph(`База тарифа: ${lease.base}`),
+            new Docx.Paragraph(lease.deposit ? `Депозит: ${Number(lease.deposit)} BYN` : ''),
+            new Docx.Paragraph(`Срок оплаты: до ${lease.dueDay} числа месяца`),
+            new Docx.Paragraph(`Пени: ${Number(lease.penaltyRatePerDay)}% в день`),
+            new Docx.Paragraph(''),
+            new Docx.Paragraph('Подписи сторон:'),
+            new Docx.Paragraph(`${org.name} ____________________`),
+            new Docx.Paragraph(`Арендатор ____________________`),
           ],
         },
       ],
     });
-    return Packer.toBuffer(doc);
+    return Docx.Packer.toBuffer(doc);
   }
 
   async invoiceDocx(invoiceId: string) {
@@ -163,32 +167,32 @@ export class DocumentsService {
     const vat = Number(inv.accrual.vatAmount);
     const total = Number(inv.accrual.total);
 
-    const doc = new DocxDocument({
+    const doc = new Docx.Document({
       sections: [
         {
           properties: {},
           children: [
-            new Paragraph({ children: [new TextRun({ text: 'Счет на оплату', bold: true, size: 28 })], spacing: { after: 200 } }),
-            new Paragraph(`Поставщик: ${org.name}, УНП ${org.unp}`),
-            new Paragraph(`Адрес: ${org.address}`),
-            new Paragraph(`Тел.: ${org.phone}, E-mail: ${org.email}`),
-            new Paragraph(`Реквизиты: ${org.iban} (${org.bank})`),
-            new Paragraph(''),
-            new Paragraph(`Дата: ${inv.date.toISOString().slice(0, 10)}`),
-            new Paragraph(`Номер счета: ${inv.number}`),
-            new Paragraph(''),
-            new Paragraph(`Покупатель: ${inv.accrual.lease.tenant.name}`),
-            new Paragraph(`Основание: Договор аренды, помещение: ${inv.accrual.lease.premise.address}`),
-            new Paragraph(''),
-            new Paragraph(`Сумма без НДС: ${base.toFixed(2)} BYN`),
-            new Paragraph(`НДС: ${vat.toFixed(2)} BYN`),
-            new Paragraph(`Итого к оплате: ${total.toFixed(2)} BYN`),
-            new Paragraph(''),
-            new Paragraph('Подпись поставщика: ______________________'),
+            new Docx.Paragraph({ children: [new Docx.TextRun({ text: 'Счет на оплату', bold: true, size: 28 })], spacing: { after: 200 } }),
+            new Docx.Paragraph(`Поставщик: ${org.name}, УНП ${org.unp}`),
+            new Docx.Paragraph(`Адрес: ${org.address}`),
+            new Docx.Paragraph(`Тел.: ${org.phone}, E-mail: ${org.email}`),
+            new Docx.Paragraph(`Реквизиты: ${org.iban} (${org.bank})`),
+            new Docx.Paragraph(''),
+            new Docx.Paragraph(`Дата: ${new Date(inv.date as any).toISOString().slice(0, 10)}`),
+            new Docx.Paragraph(`Номер счета: ${inv.number}`),
+            new Docx.Paragraph(''),
+            new Docx.Paragraph(`Покупатель: ${inv.accrual.lease.tenant.name}`),
+            new Docx.Paragraph(`Основание: Договор аренды, помещение: ${inv.accrual.lease.premise.address}`),
+            new Docx.Paragraph(''),
+            new Docx.Paragraph(`Сумма без НДС: ${base.toFixed(2)} BYN`),
+            new Docx.Paragraph(`НДС: ${vat.toFixed(2)} BYN`),
+            new Docx.Paragraph(`Итого к оплате: ${total.toFixed(2)} BYN`),
+            new Docx.Paragraph(''),
+            new Docx.Paragraph('Подпись поставщика: ______________________'),
           ],
         },
       ],
     });
-    return Packer.toBuffer(doc);
+    return Docx.Packer.toBuffer(doc);
   }
 }

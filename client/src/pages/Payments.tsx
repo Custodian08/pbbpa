@@ -31,6 +31,8 @@ import { toPng } from 'html-to-image';
   const [pageSize, setPageSize] = React.useState(10);
 
   const [open, setOpen] = React.useState(false);
+  const [unresolvedOpen, setUnresolvedOpen] = React.useState(false);
+const [applyForm] = Form.useForm();
   const [form] = Form.useForm();
   const [q, setQ] = React.useState('');
   const [status, setStatus] = React.useState<string | undefined>(undefined);
@@ -91,9 +93,26 @@ import { toPng } from 'html-to-image';
     download(res.data, `${kind}-template.csv`);
   };
 
+  const { data: unresolved, isFetching: unresolvedLoading, refetch: refetchUnresolved } = useQuery<{
+  id: string; tenantId: string; amount: number; date: string; status: string;
+}[]>({
+  queryKey: ['payments','unresolved', unresolvedOpen],
+  queryFn: async () => (await api.get('/payments/unresolved')).data,
+  enabled: unresolvedOpen,
+});
+
+const applyPayment = useMutation({
+  mutationFn: async (values: { id: string; invoiceNumber: string }) => (await api.post(`/payments/${values.id}/apply`, { invoiceNumber: values.invoiceNumber })).data,
+  onSuccess: async () => { await refetchUnresolved(); await qc.invalidateQueries({ queryKey: ['payments'] }); applyForm.resetFields(); },
+});
+const refundPayment = useMutation({
+  mutationFn: async (id: string) => (await api.post(`/payments/${id}/refund`)).data,
+  onSuccess: async () => { await refetchUnresolved(); await qc.invalidateQueries({ queryKey: ['payments'] }); },
+});
   return (
     <Card title="Платежи" extra={<Space>
       <Button onClick={exportPng}>Экспорт PNG</Button>
+      <Button onClick={()=> { setUnresolvedOpen(true); refetchUnresolved(); }}>Нерешенные</Button>
       <Button onClick={()=> downloadCsv('payments')}>Шаблон payments.csv</Button>
       <Button onClick={()=> downloadCsv('tenants')}>Шаблон tenants.csv</Button>
       <Button onClick={()=> downloadCsv('premises')}>Шаблон premises.csv</Button>
@@ -150,6 +169,35 @@ import { toPng } from 'html-to-image';
           </Form.Item>
         </Form>
       </Modal>
+      <Modal open={unresolvedOpen} title="Нерешенные платежи" onCancel={()=> setUnresolvedOpen(false)} footer={null} width={760}>
+  <Table<{ id: string; tenantId: string; amount: number; date: string; status: string }>
+    rowKey="id"
+    loading={unresolvedLoading}
+    dataSource={unresolved || []}
+    pagination={{ pageSize: 8 }}
+    columns={[
+      { title: 'Дата', dataIndex: 'date', render: (v)=> String(v).slice(0,10) },
+      { title: 'Арендатор', dataIndex: 'tenantId', render: (v)=> byId[v] || v },
+      { title: 'Сумма', dataIndex: 'amount' },
+      { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color="orange">{v}</Tag> },
+      { title: 'Действия', key: 'a', render: (_: any, r)=> (
+        <Space.Compact block>
+          <Form form={applyForm} layout="inline" onFinish={(v)=> applyPayment.mutate({ id: r.id, invoiceNumber: v.invoiceNumber })} style={{ width: '100%' }}>
+            <Form.Item name="invoiceNumber" rules={[{ required: true }]} style={{ flex: 1 }}>
+              <Input placeholder="№ счета" />
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button size="small" type="primary" htmlType="submit" loading={applyPayment.isPending}>Сопоставить</Button>
+                <Button size="small" danger onClick={()=> refundPayment.mutate(r.id)} loading={refundPayment.isPending}>Возврат</Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Space.Compact>
+      ) }
+    ]}
+  />
+</Modal>
     </Card>
   );
  }

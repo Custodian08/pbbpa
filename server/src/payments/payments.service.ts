@@ -85,6 +85,35 @@ export class PaymentsService {
     return payment;
   }
 
+  async listUnresolved() {
+    return this.prisma.payment.findMany({ where: { status: 'UNRESOLVED' }, orderBy: { date: 'desc' } });
+  }
+
+  async apply(id: string, invoiceNumber: string) {
+    const p = await this.prisma.payment.findUnique({ where: { id } });
+    if (!p) throw new NotFoundException('Payment not found');
+    const inv = await this.prisma.invoice.findFirst({ where: { number: invoiceNumber }, include: { accrual: { include: { lease: true } } } });
+    if (!inv) throw new NotFoundException('Invoice not found');
+    // Optional: ensure tenant match
+    const tenantMatches = inv.accrual.lease.tenantId === p.tenantId;
+    const prevLinked = p.linkedInvoiceId;
+    const updated = await this.prisma.payment.update({ where: { id }, data: {
+      linkedInvoiceId: tenantMatches ? inv.id : null,
+      status: tenantMatches ? 'APPLIED' : 'UNRESOLVED',
+    }});
+    if (prevLinked) await this.recomputeInvoiceStatus(prevLinked);
+    if (tenantMatches) await this.recomputeInvoiceStatus(inv.id);
+    return updated;
+  }
+
+  async refund(id: string) {
+    const p = await this.prisma.payment.findUnique({ where: { id } });
+    if (!p) throw new NotFoundException('Payment not found');
+    const updated = await this.prisma.payment.update({ where: { id }, data: { status: 'REFUNDED' } });
+    if (p.linkedInvoiceId) await this.recomputeInvoiceStatus(p.linkedInvoiceId);
+    return updated;
+  }
+
   async import(items: CreatePaymentDto[]) {
     const results = [] as Array<{ ok: boolean; id?: string; reason?: string }>;
     for (const row of items) {

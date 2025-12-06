@@ -20,6 +20,7 @@ export const AppLayout: React.FC = () => {
     if (location.pathname.startsWith('/payments')) return ['payments'];
     if (location.pathname.startsWith('/reservations')) return ['reservations'];
     if (location.pathname.startsWith('/admin/users')) return ['admin-users'];
+    if (location.pathname.startsWith('/admin/settings')) return ['admin-settings'];
     if (location.pathname.startsWith('/admin/audit')) return ['admin-audit'];
     return [] as string[];
   }, [location.pathname]);
@@ -38,6 +39,7 @@ export const AppLayout: React.FC = () => {
           <Menu.Item key="payments" icon={<FileSyncOutlined />}> <Link to="/payments">Платежи</Link> </Menu.Item>
           <Menu.Item key="reservations" icon={<CalendarOutlined />}> <Link to="/reservations">Резервации</Link> </Menu.Item>
           {isAdmin && <Menu.Item key="admin-users"> <Link to="/admin/users">Пользователи</Link> </Menu.Item>}
+          {isAdmin && <Menu.Item key="admin-settings"> <Link to="/admin/settings">Настройки</Link> </Menu.Item>}
           {isAdmin && <Menu.Item key="admin-audit"> <Link to="/admin/audit">Аудит</Link> </Menu.Item>}
         </Menu>
       </Sider>

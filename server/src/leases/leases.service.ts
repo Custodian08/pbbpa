@@ -106,7 +106,19 @@ export class LeasesService {
     await this.ensureNoOverlap(lease.premiseId, lease.periodFrom, lease.periodTo, lease.id);
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const l = await tx.lease.update({ where: { id }, data: { status: LeaseStatus.ACTIVE } });
+      // Assign number/date if missing
+      let number = lease.number || null;
+      let date = lease.date || null;
+      if (!number || !date) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const start = new Date(year, 0, 1);
+        const end = new Date(year, 11, 31, 23, 59, 59, 999);
+        const cnt = await tx.lease.count({ where: { date: { gte: start, lte: end } } });
+        number = `LEASE-${year}-${String(cnt + 1).padStart(4, '0')}`;
+        date = now;
+      }
+      const l = await tx.lease.update({ where: { id }, data: { status: LeaseStatus.ACTIVE, number, date } });
       await tx.premise.update({ where: { id: l.premiseId }, data: { status: PremiseStatus.RENTED } });
       return l;
     });
@@ -161,5 +173,21 @@ export class LeasesService {
   async indexations(leaseId: string) {
     await this.findOne(leaseId);
     return this.prisma.indexation.findMany({ where: { leaseId }, orderBy: { effectiveFrom: 'desc' } });
+  }
+
+  async addIndexation(leaseId: string, dto: { factor: number; effectiveFrom: string }) {
+    await this.findOne(leaseId);
+    const date = new Date(dto.effectiveFrom);
+    if (Number.isNaN(date.getTime())) throw new ConflictException('Invalid effectiveFrom');
+    const dup = await this.prisma.indexation.findFirst({ where: { leaseId, effectiveFrom: date } });
+    if (dup) throw new ConflictException('Indexation for this date already exists');
+    return this.prisma.indexation.create({ data: { leaseId, factor: dto.factor as any, effectiveFrom: date } });
+  }
+
+  async removeIndexation(leaseId: string, ixId: string) {
+    const ix = await this.prisma.indexation.findUnique({ where: { id: ixId } });
+    if (!ix || ix.leaseId !== leaseId) throw new NotFoundException('Indexation not found');
+    await this.prisma.indexation.delete({ where: { id: ixId } });
+    return { ok: true };
   }
 }

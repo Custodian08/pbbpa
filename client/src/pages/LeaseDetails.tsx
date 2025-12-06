@@ -1,8 +1,8 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
-import { Card, Descriptions, Tabs, Table, Tag, Space, Button, App as AntApp } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { Card, Descriptions, Tabs, Table, Tag, Space, Button, App as AntApp, Modal, Form, DatePicker, InputNumber } from 'antd';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../modules/auth/AuthContext';
 import { toPng } from 'html-to-image';
 
@@ -33,13 +33,26 @@ import { toPng } from 'html-to-image';
   const { message } = AntApp.useApp();
   const { user } = useAuth();
   const isAdmin = (user?.roles || []).includes('ADMIN');
+  const isOperator = (user?.roles || []).includes('OPERATOR');
   const cardRef = React.useRef<HTMLDivElement>(null);
+  const qc = useQueryClient();
 
-  const { data: lease, isLoading } = useQuery<Lease>({ queryKey: ['lease', id], queryFn: async () => (await api.get(`/leases/${id}`)).data });
+  const { data: lease, isLoading, refetch } = useQuery<Lease>({ queryKey: ['lease', id], queryFn: async () => (await api.get(`/leases/${id}`)).data });
   const { data: accruals } = useQuery<Accrual[]>({ queryKey: ['lease-accruals', id], queryFn: async () => (await api.get(`/leases/${id}/accruals`)).data });
   const { data: invoices } = useQuery<Invoice[]>({ queryKey: ['lease-invoices', id], queryFn: async () => (await api.get(`/leases/${id}/invoices`)).data });
   const { data: payments } = useQuery<Payment[]>({ queryKey: ['lease-payments', id], queryFn: async () => (await api.get(`/leases/${id}/payments`)).data });
   const { data: indexations } = useQuery<Indexation[]>({ queryKey: ['lease-indexations', id], queryFn: async () => (await api.get(`/leases/${id}/indexations`)).data });
+
+  const [ixOpen, setIxOpen] = React.useState(false);
+  const [ixForm] = Form.useForm();
+  const addIx = useMutation({
+    mutationFn: async (values: any) => (await api.post(`/leases/${id}/indexations`, { factor: Number(values.factor), effectiveFrom: values.effectiveFrom.format('YYYY-MM-DD') })).data,
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['lease-indexations', id] }); setIxOpen(false); ixForm.resetFields(); message.success('Индексация добавлена'); },
+  });
+  const delIx = useMutation({
+    mutationFn: async (ixId: string) => (await api.delete(`/leases/${id}/indexations/${ixId}`)).data,
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['lease-indexations', id] }); message.success('Индексация удалена'); },
+  });
 
   const download = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -49,6 +62,14 @@ import { toPng } from 'html-to-image';
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const mutateAndRefresh = async (fn: ()=> Promise<any>, okMsg: string) => {
+    try { await fn(); await refetch(); message.success(okMsg); } catch (e:any) { message.error('Операция не выполнена'); }
+  };
+
+  const activateLease = () => Modal.confirm({ title: 'Активировать договор?', okText: 'Да', cancelText: 'Нет', onOk: async ()=> mutateAndRefresh(()=> api.post(`/leases/${id}/activate`), 'Договор активирован') });
+  const terminateLease = () => Modal.confirm({ title: 'Перевести в расторжение?', okText: 'Да', cancelText: 'Нет', onOk: async ()=> mutateAndRefresh(()=> api.post(`/leases/${id}/terminate`), 'Статус изменён') });
+  const closeLease = () => Modal.confirm({ title: 'Закрыть договор?', okText: 'Да', cancelText: 'Нет', onOk: async ()=> mutateAndRefresh(()=> api.post(`/leases/${id}/close`), 'Договор закрыт') });
 
   const downloadInvoicePdf = async (invId: string, number: string) => {
     const res = await api.get(`/reports/invoice/${invId}.pdf`, { responseType: 'blob' });
@@ -103,6 +124,9 @@ import { toPng } from 'html-to-image';
         <Button onClick={downloadContractPdf}>Договор (PDF)</Button>
         {isAdmin && <Button onClick={downloadContractDocx}>Договор (DOCX)</Button>}
         {isAdmin && <Button onClick={exportContractPng}>Договор (PNG)</Button>}
+        {(isAdmin || isOperator) && lease?.status==='DRAFT' && <Button type="primary" onClick={activateLease}>Активировать</Button>}
+        {(isAdmin) && lease?.status==='ACTIVE' && <Button danger onClick={terminateLease}>На расторжении</Button>}
+        {(isAdmin) && (lease?.status==='ACTIVE' || lease?.status==='TERMINATING') && <Button onClick={closeLease}>Закрыть</Button>}
       </Space>
     }>
       {lease && (
@@ -184,15 +208,38 @@ import { toPng } from 'html-to-image';
                 key: 'indexations',
                 label: 'Индексации',
                 children: (
-                  <Table<Indexation>
-                    rowKey="id"
-                    dataSource={indexations || []}
-                    pagination={{ pageSize: 10 }}
-                    columns={[
-                      { title: 'Дата действия', dataIndex: 'effectiveFrom', render: (v)=> String(v).slice(0,10) },
-                      { title: 'Коэффициент', dataIndex: 'factor' },
-                    ]}
-                  />
+                  <>
+                    {(isAdmin || isOperator) && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Button type="primary" onClick={()=> setIxOpen(true)}>Добавить индексацию</Button>
+                      </div>
+                    )}
+                    <Table<Indexation>
+                      rowKey="id"
+                      dataSource={indexations || []}
+                      pagination={{ pageSize: 10 }}
+                      columns={[
+                        { title: 'Дата действия', dataIndex: 'effectiveFrom', render: (v)=> String(v).slice(0,10) },
+                        { title: 'Коэффициент', dataIndex: 'factor' },
+                        { title: 'Действия', key: 'a', render: (_: any, r)=> (
+                          <Space>
+                            {(isAdmin) && <Button size="small" danger onClick={()=> delIx.mutate(r.id)}>Удалить</Button>}
+                          </Space>
+                        )}
+                      ]}
+                    />
+
+                    <Modal open={ixOpen} title="Новая индексация" onCancel={()=> setIxOpen(false)} onOk={()=> ixForm.submit()} okText="Сохранить" confirmLoading={addIx.isPending}>
+                      <Form form={ixForm} layout="vertical" onFinish={(v)=> addIx.mutate(v)} initialValues={{ factor: 1 }}>
+                        <Form.Item label="Дата действия" name="effectiveFrom" rules={[{ required: true }]}>
+                          <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                        </Form.Item>
+                        <Form.Item label="Коэффициент" name="factor" rules={[{ required: true }]}>
+                          <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Form>
+                    </Modal>
+                  </>
                 )
               }
             ]}

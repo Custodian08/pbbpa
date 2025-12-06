@@ -20,9 +20,11 @@ import { ReportsModule } from './reports/reports.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { DocumentsModule } from './documents/documents.module';
 import { InitialSeedService } from './initial-seed.service';
+import { SettingsModule } from './settings/settings.module';
+import { PenaltiesModule } from './penalties/penalties.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), UsersModule, AuthModule, PremisesModule, TenantsModule, LeasesModule, ReservationsModule, BillingModule, PaymentsModule, AdminModule, ReportsModule, AnalyticsModule, DocumentsModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), UsersModule, AuthModule, PremisesModule, TenantsModule, LeasesModule, ReservationsModule, BillingModule, PaymentsModule, AdminModule, ReportsModule, AnalyticsModule, DocumentsModule, SettingsModule, PenaltiesModule],
   controllers: [AppController],
   providers: [
     AppService,

@@ -43,4 +43,10 @@ export class PremisesController {
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
+
+  @Post('import')
+  @Roles('OPERATOR', 'ADMIN')
+  import(@Body() dtos: CreatePremiseDto[]) {
+    return this.service.import(dtos);
+  }
 }

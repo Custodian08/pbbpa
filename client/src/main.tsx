@@ -17,6 +17,7 @@ import { InvoicesPage } from './pages/Invoices';
 import { PaymentsPage } from './pages/Payments';
 import { AdminUsersPage } from './pages/AdminUsers';
 import { AdminAuditPage } from './pages/AdminAudit';
+import { AdminSettingsPage } from './pages/AdminSettings';
 import { LeaseDetailsPage } from './pages/LeaseDetails';
 import { DashboardPage } from './pages/Dashboard';
 import { ReservationsPage } from './pages/Reservations';
@@ -48,6 +49,7 @@ ReactDOM.createRoot(document.getElementById('app')!).render(
                     <Route element={<AdminRoute />}> 
                       <Route path="/admin/users" element={<AdminUsersPage />} />
                       <Route path="/admin/audit" element={<AdminAuditPage />} />
+                      <Route path="/admin/settings" element={<AdminSettingsPage />} />
                     </Route>
                   </Route>
                 </Route>
