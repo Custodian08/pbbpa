@@ -20,6 +20,7 @@ import { AdminAuditPage } from './pages/AdminAudit';
 import { LeaseDetailsPage } from './pages/LeaseDetails';
 import { DashboardPage } from './pages/Dashboard';
 import { ReservationsPage } from './pages/Reservations';
+import { CatalogPage } from './pages/Catalog';
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ ReactDOM.createRoot(document.getElementById('app')!).render(
                     <Route index element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/premises" element={<PremisesPage />} />
+                    <Route path="/catalog" element={<CatalogPage />} />
                     <Route path="/tenants" element={<TenantsPage />} />
                     <Route path="/leases" element={<LeasesPage />} />
                     <Route path="/leases/:id" element={<LeaseDetailsPage />} />

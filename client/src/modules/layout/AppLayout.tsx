@@ -31,6 +31,7 @@ export const AppLayout: React.FC = () => {
         <Menu mode="inline" selectedKeys={selected}>
           <Menu.Item key="dashboard" icon={<HomeOutlined />}> <Link to="/dashboard">Дашборд</Link> </Menu.Item>
           <Menu.Item key="premises" icon={<ShopOutlined />}> <Link to="/premises">Помещения</Link> </Menu.Item>
+          <Menu.Item key="catalog" icon={<ShopOutlined />}> <Link to="/catalog">Каталог</Link> </Menu.Item>
           <Menu.Item key="tenants" icon={<TeamOutlined />}> <Link to="/tenants">Арендаторы</Link> </Menu.Item>
           <Menu.Item key="leases" icon={<FileTextOutlined />}> <Link to="/leases">Договоры</Link> </Menu.Item>
           <Menu.Item key="invoices" icon={<FileDoneOutlined />}> <Link to="/invoices">Счета</Link> </Menu.Item>
