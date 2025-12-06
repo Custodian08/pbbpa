@@ -78,12 +78,27 @@ export const AdminUsersPage: React.FC = () => {
         ]}
       />
 
-      <Modal open={open} title="Новый пользователь" onCancel={()=> setOpen(false)} onOk={()=> createForm.submit()} okText="Сохранить" confirmLoading={createUser.isPending}>
-        <Form form={createForm} layout="vertical" onFinish={(v)=> createUser.mutate(v as any)}>
-          <Form.Item label="E-mail" name="email" rules={[{ required: true }]}> <Input type="email" /> </Form.Item>
-          <Form.Item label="ФИО" name="fullName"> <Input /> </Form.Item>
-          <Form.Item label="Пароль" name="password" rules={[{ required: true, min: 6 }]}> <Input.Password /> </Form.Item>
-          <Form.Item label="Роль" name="roleName"> <Select options={roleOptions} placeholder="OPERATOR по умолчанию" allowClear /> </Form.Item>
+      <Modal
+        open={open}
+        title="Новый пользователь"
+        onCancel={()=> setOpen(false)}
+        okText="Сохранить"
+        confirmLoading={createUser.isPending}
+        okButtonProps={{ htmlType: 'submit', form: 'createUserForm' }}
+      >
+        <Form form={createForm} id="createUserForm" layout="vertical" onFinish={(v)=> createUser.mutate(v as any)}>
+          <Form.Item label="E-mail" name="email" rules={[{ required: true }, { type: 'email' }]}>
+            <Input type="email" />
+          </Form.Item>
+          <Form.Item label="ФИО" name="fullName">
+            <Input />
+          </Form.Item>
+          <Form.Item label="Пароль" name="password" rules={[{ required: true, min: 6 }]}>
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item label="Роль" name="roleName">
+            <Select options={roleOptions} placeholder="OPERATOR по умолчанию" allowClear />
+          </Form.Item>
         </Form>
       </Modal>
     </Card>
