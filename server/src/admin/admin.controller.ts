@@ -4,6 +4,7 @@ import { AssignRoleDto } from './dto/assign-role.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ApiTags } from '@nestjs/swagger';
 import { Req } from '@nestjs/common';
+import { LinkTenantDto } from './dto/link-tenant.dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -14,6 +15,12 @@ export class AdminController {
   @Roles('ADMIN')
   assignRole(@Body() dto: AssignRoleDto) {
     return this.service.assignRole(dto);
+  }
+
+  @Post('link-tenant')
+  @Roles('ADMIN')
+  linkTenant(@Body() dto: LinkTenantDto) {
+    return this.service.linkTenant(dto);
   }
 
   @Get('audit')

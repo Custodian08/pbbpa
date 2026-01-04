@@ -27,25 +27,25 @@ export class PremisesController {
   }
 
   @Post()
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   create(@Body() dto: CreatePremiseDto) {
     return this.service.create(dto);
   }
 
   @Patch(':id')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   update(@Param('id') id: string, @Body() dto: Partial<CreatePremiseDto>) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
 
   @Post('import')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   import(@Body() dtos: CreatePremiseDto[]) {
     return this.service.import(dtos);
   }

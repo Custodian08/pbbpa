@@ -1,5 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateLeaseDto } from './dto/create-lease.dto';
 import { LeaseStatus, PremiseStatus, RateType } from '@prisma/client';
 
@@ -11,7 +14,7 @@ function periodsOverlap(aFrom: Date, aTo: Date | null, bFrom: Date, bTo: Date | 
 
 @Injectable()
 export class LeasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly notif: NotificationsService) {}
 
   async assertPremiseAndTenant(premiseId: string, tenantId: string) {
     const [premise, tenant] = await Promise.all([
@@ -42,11 +45,19 @@ export class LeasesService {
     const to = dto.periodTo ? new Date(dto.periodTo) : null;
     if (to && to < from) throw new ConflictException('periodTo cannot be earlier than periodFrom');
     await this.ensureNoOverlap(dto.premiseId, from, to);
+    // If reservationId provided, verify it belongs to the same premise and capture reserver user
+    let createdByUserId: string | undefined;
+    if (dto.reservationId) {
+      const resv = await this.prisma.reservation.findUnique({ where: { id: dto.reservationId }, include: { premise: true, createdBy: true } });
+      if (!resv) throw new NotFoundException('Reservation not found');
+      if (resv.premiseId !== dto.premiseId) throw new ConflictException('Reservation does not match selected premise');
+      createdByUserId = resv.createdByUserId || undefined;
+    }
 
     return this.prisma.lease.create({
       data: {
-        premiseId: dto.premiseId,
-        tenantId: dto.tenantId,
+        premise: { connect: { id: dto.premiseId } },
+        tenant: { connect: { id: dto.tenantId } },
         periodFrom: from,
         periodTo: to,
         base: dto.base,
@@ -56,6 +67,8 @@ export class LeasesService {
         dueDay: dto.dueDay,
         penaltyRatePerDay: (dto.penaltyRatePerDay ?? 0.1) as unknown as any,
         status: LeaseStatus.DRAFT,
+        ...(dto.reservationId ? { reservation: { connect: { id: dto.reservationId } } } : {}),
+        ...(createdByUserId ? { createdBy: { connect: { id: createdByUserId } } } : {}),
       },
     });
   }
@@ -181,13 +194,44 @@ export class LeasesService {
     if (Number.isNaN(date.getTime())) throw new ConflictException('Invalid effectiveFrom');
     const dup = await this.prisma.indexation.findFirst({ where: { leaseId, effectiveFrom: date } });
     if (dup) throw new ConflictException('Indexation for this date already exists');
-    return this.prisma.indexation.create({ data: { leaseId, factor: dto.factor as any, effectiveFrom: date } });
+    const ix = await this.prisma.indexation.create({ data: { leaseId, factor: dto.factor as any, effectiveFrom: date } });
+    // notify tenant
+    const lease = await this.prisma.lease.findUnique({ where: { id: leaseId }, include: { tenant: true } });
+    const to = lease?.tenant?.email;
+    if (to) void this.notif.indexationApplied(to, { leaseNumber: lease?.number || undefined, factor: dto.factor, from: date });
+    return ix;
   }
 
   async removeIndexation(leaseId: string, ixId: string) {
     const ix = await this.prisma.indexation.findUnique({ where: { id: ixId } });
     if (!ix || ix.leaseId !== leaseId) throw new NotFoundException('Indexation not found');
     await this.prisma.indexation.delete({ where: { id: ixId } });
+    return { ok: true };
+  }
+
+  // --- Signed file helpers ---
+  async markSigned(id: string, opts: { by?: string; fileName: string }) {
+    await this.findOne(id);
+    const updated = await this.prisma.lease.update({
+      where: { id },
+      data: ({ signedAt: new Date(), signedBy: opts.by ?? null, signedFileName: opts.fileName } as any),
+    });
+    // notify tenant
+    const lease: any = await this.prisma.lease.findUnique({ where: { id }, include: { tenant: true } });
+    const to = lease?.tenant?.email as string | undefined;
+    if (to) void this.notif.signedUploaded(to, { leaseNumber: (lease?.number as string) || undefined });
+    return updated;
+  }
+
+  async clearSigned(id: string) {
+    const lease: any = await this.findOne(id);
+    if (lease.signedFileName) {
+      const p = path.join(process.cwd(), 'uploads', 'leases', id, lease.signedFileName as string);
+      if (fs.existsSync(p)) {
+        try { fs.unlinkSync(p); } catch {}
+      }
+    }
+    await this.prisma.lease.update({ where: { id }, data: ({ signedAt: null, signedBy: null, signedFileName: null } as any) });
     return { ok: true };
   }
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Table, Tag, App as AntApp } from 'antd';
+import { Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Table, Tag, App as AntApp, Alert } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { Dayjs } from 'dayjs';
@@ -56,6 +56,28 @@ export const LeasesPage: React.FC = () => {
   const [form] = Form.useForm();
   const [q, setQ] = React.useState('');
   const [status, setStatus] = React.useState<string | undefined>(undefined);
+  const [resv, setResv] = React.useState<any | null>(null);
+  const premiseIdWatch = Form.useWatch('premiseId', form);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!premiseIdWatch) { setResv(null); return; }
+      try {
+        const r = await api.get(`/reservations/active-by-premise/${premiseIdWatch}`);
+        if (cancelled) return;
+        setResv(r.data || null);
+        const tId = r.data?.createdBy?.tenantId;
+        if (tId && !form.getFieldValue('tenantId')) {
+          form.setFieldsValue({ tenantId: tId });
+        }
+      } catch {
+        if (!cancelled) setResv(null);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [premiseIdWatch, form]);
 
   const createMutation = useMutation({
     mutationFn: async (values: any) => {
@@ -67,6 +89,7 @@ export const LeasesPage: React.FC = () => {
         deposit: values.deposit !== undefined ? Number(values.deposit) : undefined,
         penaltyRatePerDay: values.penaltyRatePerDay !== undefined ? Number(values.penaltyRatePerDay) : undefined,
         dueDay: Number(values.dueDay),
+        reservationId: resv?.id,
       };
       delete (payload as any).period;
       return (await api.post('/leases', payload)).data;
@@ -145,6 +168,14 @@ export const LeasesPage: React.FC = () => {
           <Form.Item label="Помещение" name="premiseId" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={(premises||[]).map(p=>({ label: (p.code? `${p.code} — `:'') + p.address, value: p.id }))} />
           </Form.Item>
+          {resv && (
+            <Alert
+              showIcon
+              type="info"
+              message={`Резервировал: ${resv?.createdBy?.fullName || resv?.createdBy?.email || '—'}`}
+              style={{ marginBottom: 12 }}
+            />
+          )}
           <Form.Item label="Арендатор" name="tenantId" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label" options={(tenants||[]).map(t=>({ label: t.name, value: t.id }))} />
           </Form.Item>

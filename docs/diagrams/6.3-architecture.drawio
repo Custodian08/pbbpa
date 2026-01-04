@@ -1,0 +1,52 @@
+<mxfile host="app.diagrams.net" modified="2025-12-09">
+  <diagram name="Architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" page="1" pageWidth="1600" pageHeight="1200">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="client" value="Client\n(React + Vite + AntD + React Query)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f4ff;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="280" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="server" value="Server\n(NestJS + RBAC + Validators)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8ffe6;" vertex="1" parent="1">
+          <mxGeometry x="500" y="60" width="340" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="modules" value="Modules\nreservations / checkout / billing / payments / reports" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="220" width="340" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="prisma" value="Prisma ORM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbe6;" vertex="1" parent="1">
+          <mxGeometry x="500" y="360" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="db" value="PostgreSQL" style="shape=cylinder;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="340" width="180" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="pdf" value="PDFKit" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="220" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="excel" value="ExcelJS/CSV" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="300" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mail" value="SMTP/Nodemailer" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="140" width="140" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge" value="HTTPS / REST API" style="endArrow=block;html=1;" edge="1" parent="1" source="client" target="server">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge2" value="ORM" style="endArrow=block;html=1;" edge="1" parent="1" source="server" target="prisma">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge3" value="SQL" style="endArrow=block;html=1;" edge="1" parent="1" source="prisma" target="db">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge4" value="emails" style="endArrow=block;html=1;" edge="1" parent="1" source="server" target="mail">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge5" value="docs" style="endArrow=block;html=1;" edge="1" parent="1" source="server" target="pdf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge6" value="exports/imports" style="endArrow=block;html=1;" edge="1" parent="1" source="server" target="excel">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

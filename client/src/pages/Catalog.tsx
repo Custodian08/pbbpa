@@ -1,8 +1,9 @@
 import React from 'react';
-import { Button, Card, DatePicker, Form, Modal, Space, Table, Tag, App as AntApp } from 'antd';
+import { Button, Card, DatePicker, Form, Modal, Space, Tag, App as AntApp, Row, Col, Typography, Divider } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import dayjs, { Dayjs } from 'dayjs';
+import { useAuth } from '../modules/auth/AuthContext';
 
  type Premise = {
   id: string;
@@ -11,14 +12,20 @@ import dayjs, { Dayjs } from 'dayjs';
   address: string;
   area: number;
   availableFrom?: string | null;
+  status?: 'FREE' | 'RESERVED' | 'RENTED';
+  rateType?: 'M2' | 'FIXED';
+  baseRate?: number | null;
 };
 
 export const CatalogPage: React.FC = () => {
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
+  const { user } = useAuth();
+  const roles = (user?.roles || []) as string[];
+  const isStaff = roles.some(r => ['ADMIN','OPERATOR','MANAGER','EXEC','ANALYST'].includes(r));
   const { data, isLoading } = useQuery<Premise[]>({
-    queryKey: ['catalog-available-premises'],
-    queryFn: async () => (await api.get('/premises/available')).data,
+    queryKey: ['catalog', isStaff ? 'all' : 'available'],
+    queryFn: async () => (await api.get(isStaff ? '/premises' : '/premises/available')).data,
   });
 
   const [open, setOpen] = React.useState(false);
@@ -29,34 +36,67 @@ export const CatalogPage: React.FC = () => {
     mutationFn: async (values: { until: Dayjs }) =>
       (await api.post('/reservations', { premiseId: currentPremise!.id, until: values.until.format('YYYY-MM-DD') })).data,
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['catalog-available-premises'] });
+      await qc.invalidateQueries({ queryKey: ['catalog'] });
+      await qc.invalidateQueries({ queryKey: ['me','reservations'] });
       setOpen(false); form.resetFields(); setCurrentPremise(null);
       message.success('Бронирование создано');
     },
   });
 
+  const [processing, setProcessing] = React.useState<string | null>(null);
+  const rentAndPay = async (p: Premise) => {
+    try {
+      setProcessing(p.id);
+      // 1) Rent: create lease + invoice
+      const rentRes = await api.post('/checkout/rent', { premiseId: p.id });
+      const invoice = rentRes.data?.invoice;
+      if (!invoice?.id) throw new Error('Не удалось создать счет');
+      // 2) Pay: pay this invoice fully
+      await api.post('/checkout/pay', { invoiceId: invoice.id });
+      message.success('Аренда оформлена и счет оплачен');
+      await qc.invalidateQueries({ queryKey: ['catalog'] });
+    } catch (e:any) {
+      message.error(e?.response?.data?.message || 'Не удалось оформить аренду');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   const reserve = (p: Premise) => { setCurrentPremise(p); setOpen(true); };
 
+  const statusTag = (s?: string) => {
+    if (!s) return null;
+    const color = s==='FREE' ? 'green' : s==='RESERVED' ? 'orange' : 'red';
+    return <Tag color={color}>{s}</Tag>;
+  };
+
   return (
-    <Card title="Доступные помещения">
-      <Table<Premise>
-        rowKey="id"
-        loading={isLoading}
-        dataSource={data || []}
-        pagination={{ pageSize: 10 }}
-        columns={[
-          { title: 'Код', dataIndex: 'code' },
-          { title: 'Тип', dataIndex: 'type', render: (v) => <Tag>{v}</Tag> },
-          { title: 'Адрес', dataIndex: 'address' },
-          { title: 'Площадь, м²', dataIndex: 'area' },
-          { title: 'Доступно с', dataIndex: 'availableFrom', render: (v) => (v ? String(v).slice(0,10) : 'сейчас') },
-          { title: 'Действия', key: 'a', render: (_: any, r) => (
-            <Space>
-              <Button type="primary" onClick={()=> reserve(r)}>Забронировать</Button>
-            </Space>
-          )},
-        ]}
-      />
+    <Card title={isStaff ? 'Каталог помещений' : 'Доступные помещения'} loading={isLoading}>
+      <Row gutter={[16,16]}>
+        {(data||[]).map(p => (
+          <Col key={p.id} xs={24} sm={12} md={8} lg={6}>
+            <Card hoverable>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
+                  <Typography.Text strong>{p.code || 'Без кода'}</Typography.Text>
+                  {isStaff && statusTag(p.status)}
+                </Space>
+                <Typography.Text>{p.address}</Typography.Text>
+                <Space size={8}>
+                  <Tag>{p.type}</Tag>
+                  <Tag>{p.area} м²</Tag>
+                  {p.rateType && <Tag>{p.rateType}{p.baseRate? ` ${p.baseRate}`: ''}</Tag>}
+                </Space>
+                <Divider style={{ margin: '8px 0' }} />
+                <Space>
+                  <Button type="primary" disabled={p.status && p.status!=='FREE'} onClick={()=> reserve(p)}>Забронировать</Button>
+                  <Button disabled={p.status && p.status!=='FREE'} loading={processing===p.id} onClick={()=> rentAndPay(p)}>Арендовать и оплатить</Button>
+                </Space>
+              </Space>
+            </Card>
+          </Col>
+        ))}
+      </Row>
 
       <Modal open={open} title={currentPremise ? `Бронирование: ${currentPremise.code ? currentPremise.code + ' — ' : ''}${currentPremise.address}` : 'Бронь'}
         onCancel={()=> { setOpen(false); setCurrentPremise(null); }} onOk={()=> form.submit()} okText="Подтвердить" confirmLoading={createReservation.isPending}>

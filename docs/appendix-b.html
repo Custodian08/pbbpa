@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ПРИЛОЖЕНИЕ Б — Листинг кода алгоритмов бизнес-логики</title>
+  <style>
+    :root { --fg:#111; --bg:#fff; --muted:#666; --border:#eee; }
+    html, body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif; color:var(--fg); background:var(--bg); }
+    header { padding:24px 20px; border-bottom:1px solid var(--border); }
+    main { padding:20px; max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    h2 { margin-top: 28px; font-size: 20px; }
+    h3 { margin-top: 22px; font-size: 18px; }
+    p, li { line-height: 1.55; }
+    .file { color: var(--muted); font-size: 14px; margin: 6px 0 10px; }
+    pre { background:#f7f7f7; padding:12px; border-radius:8px; overflow:auto; border:1px solid var(--border); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; }
+    .card { border:1px solid var(--border); border-radius:8px; padding:12px 14px; background:#fff; margin: 14px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ПРИЛОЖЕНИЕ Б
+      <div style="font-size:14px;color:#666;font-weight:normal">Листинг кода алгоритмов, реализующих бизнес-логику</div>
+    </h1>
+  </header>
+  <main>
+    <p>Ниже приведены ключевые алгоритмы предметной области, извлечённые из серверной части приложения (NestJS + Prisma). Приведены фрагменты, реализующие инварианты и бизнес‑правила.</p>
+
+    <section id="reservations">
+      <h2>Алгоритмы работы с бронями (ReservationsService)</h2>
+      <div class="file">Файл: server/src/reservations/reservations.service.ts</div>
+      <div class="card">
+        <h3>Создание брони с проверками</h3>
+        <pre><code>async create(dto: CreateReservationDto, createdByUserId?: string) {
+  const premise = await this.prisma.premise.findUnique({ where: { id: dto.premiseId } });
+  if (!premise) throw new NotFoundException('Premise not found');
+  const now = new Date();
+  const untilDate = new Date(dto.until);
+  const until = new Date(untilDate);
+  // Считаем бронь действующей до конца выбранного дня
+  until.setHours(23, 59, 59, 999);
+  if (until.getTime() &lt;= now.getTime()) throw new ConflictException('Reservation until must be in the future');
+
+  // Check overlapping ACTIVE reservations
+  const activeRes = await this.prisma.reservation.findFirst({
+    where: { premiseId: dto.premiseId, status: 'ACTIVE', until: { gt: now } },
+  });
+  if (activeRes) throw new ConflictException('Premise already reserved');
+
+  // Check conflicts with active/terminating lease period
+  const conflictLease = await this.prisma.lease.findFirst({
+    where: {
+      premiseId: dto.premiseId,
+      status: { in: ['ACTIVE', 'TERMINATING'] },
+      OR: [ { periodTo: null }, { periodTo: { gte: now } } ],
+    },
+    select: { id: true },
+  });
+  if (conflictLease) throw new ConflictException('Premise is occupied by an active lease');
+
+  const reservation = await this.prisma.$transaction(async (tx) =&gt; {
+    const r = await tx.reservation.create({
+      data: ({ premiseId: dto.premiseId, until, status: ReservationStatus.ACTIVE, createdByUserId: createdByUserId ?? null } as any),
+    });
+    await tx.premise.update({ where: { id: dto.premiseId }, data: { status: 'RESERVED' } });
+    return r;
+  });
+  return reservation;
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>Отмена брони с корректировкой статуса помещения</h3>
+        <pre><code>async cancel(id: string, userId?: string, isBasicUser?: boolean) {
+  const r = await this.findOne(id);
+  if (isBasicUser) {
+    const rc: any = r as any;
+    if (!userId || rc.createdByUserId !== userId) {
+      throw new ConflictException('Not allowed to cancel this reservation');
+    }
+  }
+  if (r.status !== 'ACTIVE') return r;
+  const updated = await this.prisma.$transaction(async (tx) =&gt; {
+    const res = await tx.reservation.update({ where: { id }, data: { status: 'CANCELLED' } });
+    // If no other active reservations and no active lease, free the premise
+    const now = new Date();
+    const otherActive = await tx.reservation.findFirst({ where: { premiseId: res.premiseId, status: 'ACTIVE', until: { gt: now } } });
+    if (!otherActive) {
+      const activeLease = await tx.lease.findFirst({ where: { premiseId: res.premiseId, status: { in: ['ACTIVE', 'TERMINATING'] } } });
+      if (!activeLease) {
+        await tx.premise.update({ where: { id: res.premiseId }, data: { status: 'FREE' } });
+      }
+    }
+    return res;
+  });
+  return updated;
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>Принудительное истечение просроченных броней</h3>
+        <pre><code>async expireNow() {
+  const now = new Date();
+  // Mark expired
+  await this.prisma.reservation.updateMany({ where: { status: 'ACTIVE', until: { lte: now } }, data: { status: 'EXPIRED' } });
+  // Free premises without active reservations and leases
+  const expired = await this.prisma.reservation.findMany({ where: { status: 'EXPIRED', until: { lte: now } } });
+  const byPremise = Array.from(new Set(expired.map(e =&gt; e.premiseId)));
+  for (const premiseId of byPremise) {
+    const hasActiveRes = await this.prisma.reservation.findFirst({ where: { premiseId, status: 'ACTIVE', until: { gt: now } } });
+    if (hasActiveRes) continue;
+    const hasActiveLease = await this.prisma.lease.findFirst({ where: { premiseId, status: { in: ['ACTIVE', 'TERMINATING'] } } });
+    if (!hasActiveLease) {
+      await this.prisma.premise.update({ where: { id: premiseId }, data: { status: 'FREE' } });
+    }
+  }
+  return { ok: true };
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="leases">
+      <h2>Алгоритмы договоров аренды (LeasesService)</h2>
+      <div class="file">Файл: server/src/leases/leases.service.ts</div>
+      <div class="card">
+        <h3>Проверка пересечения периодов</h3>
+        <pre><code>function periodsOverlap(aFrom: Date, aTo: Date | null, bFrom: Date, bTo: Date | null) {
+  const aEnd = aTo ?? new Date('9999-12-31');
+  const bEnd = bTo ?? new Date('9999-12-31');
+  return aFrom &lt;= bEnd &amp;&amp; bFrom &lt;= aEnd;
+}
+
+async ensureNoOverlap(premiseId: string, periodFrom: Date, periodTo: Date | null, excludeLeaseId?: string) {
+  const candidates = await this.prisma.lease.findMany({
+    where: {
+      premiseId,
+      status: { in: [LeaseStatus.ACTIVE, LeaseStatus.TERMINATING] },
+      ...(excludeLeaseId ? { id: { not: excludeLeaseId } } : {}),
+    },
+    select: { id: true, periodFrom: true, periodTo: true },
+  });
+  const conflict = candidates.find((c) =&gt; periodsOverlap(periodFrom, periodTo, c.periodFrom, c.periodTo));
+  if (conflict) throw new ConflictException('Period overlaps with existing active/terminating lease');
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>Создание договора с валидацией периода</h3>
+        <pre><code>async create(dto: CreateLeaseDto) {
+  await this.assertPremiseAndTenant(dto.premiseId, dto.tenantId);
+  const from = new Date(dto.periodFrom);
+  const to = dto.periodTo ? new Date(dto.periodTo) : null;
+  if (to &amp;&amp; to &lt; from) throw new ConflictException('periodTo cannot be earlier than periodFrom');
+  await this.ensureNoOverlap(dto.premiseId, from, to);
+
+  return this.prisma.lease.create({
+    data: {
+      premiseId: dto.premiseId,
+      tenantId: dto.tenantId,
+      periodFrom: from,
+      periodTo: to,
+      base: dto.base,
+      currency: dto.currency ?? 'BYN',
+      vatRate: (dto.vatRate ?? 20) as unknown as any,
+      deposit: dto.deposit ?? null,
+      dueDay: dto.dueDay,
+      penaltyRatePerDay: (dto.penaltyRatePerDay ?? 0.1) as unknown as any,
+      status: LeaseStatus.DRAFT,
+    },
+  });
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>Активация договора и смена статуса помещения</h3>
+        <pre><code>async activate(id: string) {
+  const lease = await this.findOne(id);
+  if (lease.status !== 'DRAFT') throw new ConflictException('Only DRAFT lease can be activated');
+  await this.ensureNoOverlap(lease.premiseId, lease.periodFrom, lease.periodTo, lease.id);
+
+  const updated = await this.prisma.$transaction(async (tx) =&gt; {
+    // Assign number/date if missing
+    let number = lease.number || null;
+    let date = lease.date || null;
+    if (!number || !date) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const start = new Date(year, 0, 1);
+      const end = new Date(year, 11, 31, 23, 59, 59, 999);
+      const cnt = await tx.lease.count({ where: { date: { gte: start, lte: end } } });
+      number = `LEASE-${year}-${String(cnt + 1).padStart(4, '0')}`;
+      date = now;
+    }
+    const l = await tx.lease.update({ where: { id }, data: { status: LeaseStatus.ACTIVE, number, date } });
+    await tx.premise.update({ where: { id: l.premiseId }, data: { status: PremiseStatus.RENTED } });
+    return l;
+  });
+  return updated;
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="payments">
+      <h2>Алгоритмы платежей и статуса счёта (PaymentsService)</h2>
+      <div class="file">Файл: server/src/payments/payments.service.ts</div>
+      <div class="card">
+        <h3>Создание платежа с попыткой авто‑сопоставления счёта</h3>
+        <pre><code>async create(dto: CreatePaymentDto) {
+  const tenant = await this.prisma.tenant.findUnique({ where: { id: dto.tenantId } });
+  if (!tenant) throw new NotFoundException('Tenant not found');
+
+  let linkedInvoiceId: string | null = null;
+  let status: PaymentStatus = 'PENDING';
+
+  if (dto.invoiceNumber) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { number: dto.invoiceNumber },
+      include: { accrual: { include: { lease: true } } },
+    });
+    if (invoice) {
+      // ensure tenant matches
+      if (invoice.accrual.lease.tenantId !== dto.tenantId) {
+        // leave UNRESOLVED if mismatch
+        status = 'UNRESOLVED';
+      } else {
+        linkedInvoiceId = invoice.id;
+        status = 'APPLIED';
+      }
+    } else {
+      status = 'UNRESOLVED';
+    }
+  }
+
+  const payment = await this.prisma.payment.create({
+    data: {
+      tenantId: dto.tenantId,
+      amount: dto.amount as any,
+      date: new Date(dto.date),
+      linkedInvoiceId,
+      status,
+      source: (dto.source ?? PaymentSource.MANUAL) as PaymentSource,
+    },
+  });
+
+  if (linkedInvoiceId) {
+    await this.recomputeInvoiceStatus(linkedInvoiceId);
+  }
+
+  return payment;
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>Пересчёт статуса счёта по платежам</h3>
+        <pre><code>private async recomputeInvoiceStatus(invoiceId: string) {
+  const invoice = await this.prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { accrual: true, payments: true },
+  });
+  if (!invoice) return;
+  const paid = invoice.payments.reduce((s, p) =&gt; s + Number(p.amount), 0);
+  const total = Number(invoice.accrual.total);
+  let status: InvoiceStatus = 'DRAFT';
+  if (paid &lt;= 0) status = 'DRAFT';
+  else if (paid &gt; 0 &amp;&amp; paid &lt; total) status = 'PARTIALLY_PAID';
+  else if (paid &gt;= total) status = 'PAID';
+  await this.prisma.invoice.update({ where: { id: invoice.id }, data: { status } });
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>Привязка/возврат платежей</h3>
+        <pre><code>async apply(id: string, invoiceNumber: string) {
+  const p = await this.prisma.payment.findUnique({ where: { id } });
+  if (!p) throw new NotFoundException('Payment not found');
+  const inv = await this.prisma.invoice.findFirst({ where: { number: invoiceNumber }, include: { accrual: { include: { lease: true } } } });
+  if (!inv) throw new NotFoundException('Invoice not found');
+  // Optional: ensure tenant match
+  const tenantMatches = inv.accrual.lease.tenantId === p.tenantId;
+  const prevLinked = p.linkedInvoiceId;
+  const updated = await this.prisma.payment.update({ where: { id }, data: {
+    linkedInvoiceId: tenantMatches ? inv.id : null,
+    status: tenantMatches ? 'APPLIED' : 'UNRESOLVED',
+  }});
+  if (prevLinked) await this.recomputeInvoiceStatus(prevLinked);
+  if (tenantMatches) await this.recomputeInvoiceStatus(inv.id);
+  return updated;
+}
+
+async refund(id: string) {
+  const p = await this.prisma.payment.findUnique({ where: { id } });
+  if (!p) throw new NotFoundException('Payment not found');
+  const updated = await this.prisma.payment.update({ where: { id }, data: { status: 'REFUNDED' } });
+  if (p.linkedInvoiceId) await this.recomputeInvoiceStatus(p.linkedInvoiceId);
+  return updated;
+}</code></pre>
+      </div>
+    </section>
+
+    <p style="color:#666">Все листинги приведены без изменений, соответствуют состоянию репозитория на момент подготовки приложения.</p>
+  </main>
+</body>
+</html>

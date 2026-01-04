@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssignRoleDto } from './dto/assign-role.dto';
+import { LinkTenantDto } from './dto/link-tenant.dto';
 
 @Injectable()
 export class AdminService {
@@ -39,5 +40,15 @@ export class AdminService {
     const role = await this.prisma.role.upsert({ where: { name: 'ADMIN' }, update: {}, create: { name: 'ADMIN' } });
     await this.prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
     return { ok: true, userId: user.id, role: 'ADMIN' };
+  }
+
+  async linkTenant(dto: LinkTenantDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: dto.tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    const updated = await this.prisma.user.update({ where: { id: user.id }, data: { tenantId: tenant.id } });
+    const { passwordHash, ...safe } = updated as any;
+    return safe;
   }
 }

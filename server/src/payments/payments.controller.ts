@@ -25,31 +25,31 @@ export class PaymentsController {
   }
 
   @Post()
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   create(@Body() dto: CreatePaymentDto) {
     return this.service.create(dto);
   }
 
   @Post('import')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   import(@Body() dtos: CreatePaymentDto[]) {
     return this.service.import(dtos);
   }
 
   @Get('unresolved')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   unresolved() {
     return this.service.listUnresolved();
   }
 
   @Post(':id/apply')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   apply(@Param('id') id: string, @Body() body: { invoiceNumber: string }) {
     return this.service.apply(id, body.invoiceNumber);
   }
 
   @Post(':id/refund')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   refund(@Param('id') id: string) {
     return this.service.refund(id);
   }

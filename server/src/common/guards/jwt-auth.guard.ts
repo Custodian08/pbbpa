@@ -19,7 +19,7 @@ export class JwtAuthGuard implements CanActivate {
     if (!token) return false;
     try {
       const payload = await this.jwt.verifyAsync(token);
-      request.user = payload; // { sub, roles }
+      request.user = { ...payload, userId: (payload as any).sub }; // keep roles; expose userId alias
       return true;
     } catch {
       return false;

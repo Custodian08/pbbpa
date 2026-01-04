@@ -1,0 +1,35 @@
+<mxfile host="app.diagrams.net" modified="2025-12-09">
+  <diagram name="Models&Process">
+    <mxGraphModel dx="1200" dy="800" grid="1" page="1" pageWidth="1600" pageHeight="1200">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="lane1" value="Frontend (React)" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=24;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="640" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane2" value="Backend (NestJS)" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=24;" vertex="1" parent="1">
+          <mxGeometry x="700" y="60" width="700" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="step1" value="Пользователь выбирает помещение (FREE) в каталоге" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane1">
+          <mxGeometry x="20" y="40" width="560" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step2" value="Нажимает 'Арендовать и оплатить'" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane1">
+          <mxGeometry x="20" y="120" width="560" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="api1" value="POST /checkout/rent (валидация tenantId, статуса)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane2">
+          <mxGeometry x="20" y="40" width="620" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="api2" value="Создать Lease (ACTIVE), Accrual, Invoice, Payment; сменить Premise→RENTED" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane2">
+          <mxGeometry x="20" y="120" width="620" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="resp" value="Возврат успешного результата; UI показывает 'успешно', обновляет списки" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane1">
+          <mxGeometry x="20" y="200" width="560" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="step1" target="step2" style="endArrow=block;"/>
+        <mxCell id="e2" edge="1" parent="1" source="step2" target="api1" style="endArrow=block;"/>
+        <mxCell id="e3" edge="1" parent="1" source="api1" target="api2" style="endArrow=block;"/>
+        <mxCell id="e4" edge="1" parent="1" source="api2" target="resp" style="endArrow=block;"/>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

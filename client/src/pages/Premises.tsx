@@ -34,40 +34,20 @@ export const PremisesPage: React.FC = () => {
     queryKey: ['premises'],
     queryFn: async () => (await api.get('/premises')).data,
   });
-const [editOpen, setEditOpen] = React.useState(false);
-const [editing, setEditing] = React.useState<Premise | null>(null);
-const [editForm] = Form.useForm();
+
   const [open, setOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
   const [importCsv, setImportCsv] = React.useState('');
   const [importing, setImporting] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<Premise | null>(null);
+
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
   const [q, setQ] = React.useState('');
   const [type, setType] = React.useState<string | undefined>(undefined);
   const [status, setStatus] = React.useState<string | undefined>(undefined);
 
-  const updateMutation = useMutation({
-  mutationFn: async ({ id, values }: { id: string; values: any }) => (await api.patch(`/premises/${id}`, values)).data,
-  onSuccess: async () => {
-    await qc.invalidateQueries({ queryKey: ['premises'] });
-    setEditOpen(false); setEditing(null); editForm.resetFields();
-    message.success('Сохранено');
-  },
-});
-
-const openEdit = (r: Premise) => {
-  setEditing(r); setEditOpen(true);
-  editForm.setFieldsValue({
-    code: r.code || undefined,
-    type: r.type,
-    address: r.address,
-    floor: r.floor ?? undefined,
-    area: r.area,
-    rateType: r.rateType,
-    baseRate: r.baseRate ?? undefined,
-    status: r.status,
-  });
-};
   const createMutation = useMutation({
     mutationFn: async (values: any) => {
       return (await api.post('/premises', values)).data;
@@ -77,6 +57,17 @@ const openEdit = (r: Premise) => {
       setOpen(false);
       form.resetFields();
       message.success('Помещение создано');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, values }: { id: string; values: any }) => (await api.patch(`/premises/${id}`, values)).data,
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['premises'] });
+      setEditOpen(false);
+      setEditing(null);
+      editForm.resetFields();
+      message.success('Сохранено');
     },
   });
 
@@ -140,6 +131,21 @@ const openEdit = (r: Premise) => {
     });
   };
 
+  const openEdit = (r: Premise) => {
+    setEditing(r);
+    setEditOpen(true);
+    editForm.setFieldsValue({
+      code: r.code || undefined,
+      type: r.type,
+      address: r.address,
+      floor: r.floor ?? undefined,
+      area: r.area,
+      rateType: r.rateType,
+      baseRate: r.baseRate ?? undefined,
+      status: r.status,
+    });
+  };
+
   const filtered = React.useMemo(() => {
     const list = data || [];
     const ql = q.trim().toLowerCase();
@@ -186,11 +192,11 @@ const openEdit = (r: Premise) => {
             { title: 'Статус', dataIndex: 'status', render: (v) => <Tag color={v==='FREE'?'green':v==='RESERVED'?'orange':'blue'}>{v}</Tag> },
             { title: 'Доступно с', dataIndex: 'availableFrom', render: (v) => (v ? String(v).slice(0,10) : '') },
             { title: 'Действия', key: 'actions', render: (_: any, r) => (
-  <Space>
-    <Button size="small" onClick={()=> openEdit(r)}>Редактировать</Button>
-    <Button danger size="small" onClick={()=> remove(r.id)}>Удалить</Button>
-  </Space>
-)},
+              <Space>
+                <Button size="small" onClick={()=> openEdit(r)}>Редактировать</Button>
+                <Button danger size="small" onClick={()=> remove(r.id)}>Удалить</Button>
+              </Space>
+            )},
           ]}
         />
       </div>
@@ -222,33 +228,35 @@ const openEdit = (r: Premise) => {
           </Space.Compact>
         </Form>
       </Modal>
- <Modal
-  open={editOpen}
-  title="Редактирование помещения"
-  onCancel={()=> { setEditOpen(false); setEditing(null); }}
-  onOk={()=> editForm.submit()}
-  confirmLoading={updateMutation.isPending}
-  okText="Сохранить"
->
-  <Form form={editForm} layout="vertical" onFinish={(values)=> editing && updateMutation.mutate({ id: editing.id, values })}>
-    <Form.Item label="Код" name="code"><Input /></Form.Item>
-    <Form.Item label="Тип" name="type" rules={[{ required: true }]}><Select options={types} /></Form.Item>
-    <Form.Item label="Адрес" name="address" rules={[{ required: true }]}><Input /></Form.Item>
-    <Space.Compact block>
-      <Form.Item label="Этаж" name="floor" style={{ width: '30%' }}><InputNumber style={{ width: '100%' }} /></Form.Item>
-      <Form.Item label="Площадь, м²" name="area" rules={[{ required: true }]} style={{ width: '70%' }}>
-        <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
-      </Form.Item>
-    </Space.Compact>
-    <Space.Compact block>
-      <Form.Item label="Тариф" name="rateType" rules={[{ required: true }]} style={{ width: '50%' }}><Select options={rateTypes} /></Form.Item>
-      <Form.Item label="Базовая ставка" name="baseRate" style={{ width: '50%' }}><InputNumber min={0} step={0.01} style={{ width: '100%' }} /></Form.Item>
-    </Space.Compact>
-    <Form.Item label="Статус" name="status">
-      <Select options={[{label:'FREE', value:'FREE'},{label:'RENTED', value:'RENTED'},{label:'RESERVED', value:'RESERVED'}]} />
-    </Form.Item>
-  </Form>
-</Modal>
+
+      <Modal
+        open={editOpen}
+        title="Редактирование помещения"
+        onCancel={()=> { setEditOpen(false); setEditing(null); }}
+        onOk={()=> editForm.submit()}
+        confirmLoading={updateMutation.isPending}
+        okText="Сохранить"
+      >
+        <Form form={editForm} layout="vertical" onFinish={(values)=> editing && updateMutation.mutate({ id: editing.id, values })}>
+          <Form.Item label="Код" name="code"><Input /></Form.Item>
+          <Form.Item label="Тип" name="type" rules={[{ required: true }]}><Select options={types} /></Form.Item>
+          <Form.Item label="Адрес" name="address" rules={[{ required: true }]}><Input /></Form.Item>
+          <Space.Compact block>
+            <Form.Item label="Этаж" name="floor" style={{ width: '30%' }}><InputNumber style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label="Площадь, м²" name="area" rules={[{ required: true }]} style={{ width: '70%' }}>
+              <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
+            </Form.Item>
+          </Space.Compact>
+          <Space.Compact block>
+            <Form.Item label="Тариф" name="rateType" rules={[{ required: true }]} style={{ width: '50%' }}><Select options={rateTypes} /></Form.Item>
+            <Form.Item label="Базовая ставка" name="baseRate" style={{ width: '50%' }}><InputNumber min={0} step={0.01} style={{ width: '100%' }} /></Form.Item>
+          </Space.Compact>
+          <Form.Item label="Статус" name="status">
+            <Select options={[{label:'FREE', value:'FREE'},{label:'RENTED', value:'RENTED'},{label:'RESERVED', value:'RESERVED'}]} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
       <Modal open={importOpen} title="Импорт помещений (CSV)" onCancel={()=> setImportOpen(false)} onOk={doImport} okText="Импортировать" confirmLoading={importing}>
         <p>Вставьте CSV с заголовком: code,type,address,floor,area,rateType,baseRate,status,availableFrom</p>
         <Input.TextArea rows={8} value={importCsv} onChange={(e)=> setImportCsv(e.target.value)} placeholder="A-101,OFFICE,г. Минск...,5,45.5,M2,25.00,FREE,2025-01-01" />

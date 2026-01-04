@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePremiseDto } from './dto/create-premise.dto';
 
@@ -64,7 +64,15 @@ export class PremisesService {
 
   async remove(id: string) {
     await this.findOne(id);
-    await this.prisma.premise.delete({ where: { id } });
+    const leases = await this.prisma.lease.count({ where: { premiseId: id } });
+    if (leases > 0) {
+      throw new ConflictException('Нельзя удалить помещение: существуют связанные договоры');
+    }
+    await this.prisma.$transaction([
+      this.prisma.reservation.deleteMany({ where: { premiseId: id } }),
+      this.prisma.showing.deleteMany({ where: { premiseId: id } }),
+      this.prisma.premise.delete({ where: { id } }),
+    ]);
     return { ok: true };
   }
 

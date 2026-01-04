@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 820">
+  <style>
+    .b{fill:#fff;stroke:#333}
+    .t{font:14px sans-serif}
+  </style>
+  <rect width="1400" height="820" fill="#fafafa"/>
+
+  <!-- Client UI -->
+  <rect x="80" y="40" width="360" height="90" class="b" fill="#e6f4ff"/>
+  <text x="90" y="70" class="t">Client UI (React + TypeScript + Ant Design)</text>
+  <text x="90" y="92" class="t">React Query: cache, background refetch</text>
+
+  <!-- Transport label -->
+  <text x="280" y="150" class="t">HTTPS / JSON + Cookies</text>
+
+  <!-- Auth & RBAC -->
+  <rect x="360" y="110" width="170" height="110" class="b"/>
+  <text x="370" y="140" class="t">Auth &amp; RBAC</text>
+  <text x="370" y="160" class="t">JWT (httpOnly cookie)</text>
+  <text x="370" y="180" class="t">Roles · Guards</text>
+
+  <!-- REST API (NestJS) -->
+  <rect x="560" y="100" width="360" height="120" class="b" fill="#e8ffe6"/>
+  <text x="570" y="130" class="t">REST API (NestJS)</text>
+  <text x="570" y="152" class="t">Controllers · Interceptors</text>
+  <text x="570" y="174" class="t">Validation · CORS</text>
+
+  <!-- Modules -->
+  <rect x="560" y="240" width="360" height="120" class="b"/>
+  <text x="570" y="268" class="t">Modules: reservations, checkout, leases,</text>
+  <text x="570" y="288" class="t">billing, payments, reports, me, premises</text>
+
+  <!-- Prisma & DB -->
+  <rect x="640" y="380" width="200" height="60" class="b" fill="#fffbe6"/>
+  <text x="650" y="415" class="t">Prisma ORM</text>
+  <rect x="640" y="460" width="200" height="90" class="b"/>
+  <text x="650" y="510" class="t">PostgreSQL</text>
+
+  <!-- Side services -->
+  <rect x="960" y="100" width="200" height="60" class="b"/>
+  <text x="970" y="135" class="t">Scheduler (Billing CRON)</text>
+  <rect x="960" y="180" width="200" height="60" class="b"/>
+  <text x="970" y="215" class="t">Uploads (Multer)</text>
+  <rect x="960" y="260" width="200" height="60" class="b"/>
+  <text x="970" y="295" class="t">Emails (Nodemailer / SMTP)</text>
+  <rect x="960" y="340" width="200" height="100" class="b"/>
+  <text x="970" y="370" class="t">Reports &amp; Analytics</text>
+  <text x="970" y="392" class="t">PDFKit · ExcelJS</text>
+  <text x="970" y="414" class="t">Dashboard</text>
+
+  <!-- Arrows -->
+  <defs>
+    <marker id="a" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <!-- UI to API -->
+  <path d="M260 130 L560 130" stroke="#333" fill="none" marker-end="url(#a)"/>
+
+  <!-- Auth to API -->
+  <path d="M530 165 L560 165" stroke="#333" fill="none" marker-end="url(#a)"/>
+
+  <!-- API to Modules -->
+  <path d="M740 220 L740 240" stroke="#333" fill="none" marker-end="url(#a)"/>
+
+  <!-- Modules to Prisma -->
+  <path d="M740 360 L740 380" stroke="#333" fill="none" marker-end="url(#a)"/>
+
+  <!-- Prisma to DB -->
+  <path d="M740 440 L740 460" stroke="#333" fill="none" marker-end="url(#a)"/>
+
+  <!-- API to side services -->
+  <path d="M920 130 L960 130" stroke="#333" fill="none" marker-end="url(#a)"/>
+  <path d="M920 210 L960 210" stroke="#333" fill="none" marker-end="url(#a)"/>
+  <path d="M920 290 L960 290" stroke="#333" fill="none" marker-end="url(#a)"/>
+  <path d="M920 350 L960 350" stroke="#333" fill="none" marker-end="url(#a)"/>
+
+  <!-- Reports to DB (reads aggregates) -->
+  <path d="M960 380 L840 505" stroke="#333" fill="none" marker-end="url(#a)"/>
+
+  <!-- Note: cookies over HTTPS for auth -->
+  <text x="300" y="168" class="t">httpOnly cookies · CORS</text>
+</svg>

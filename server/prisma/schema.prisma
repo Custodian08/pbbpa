@@ -16,15 +16,19 @@ datasource db {
 // --- Domain Models ---
 
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  passwordHash String
-  fullName     String?
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  roles        UserRole[]
-  auditLogs    AuditLog[]
+  id                  String        @id @default(uuid())
+  email               String        @unique
+  passwordHash        String
+  fullName            String?
+  isActive            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  roles               UserRole[]
+  auditLogs           AuditLog[]
+  tenantId            String?
+  tenant              Tenant?       @relation("UserTenant", fields: [tenantId], references: [id])
+  createdReservations Reservation[] @relation("ReservationCreatedBy")
+  createdLeases       Lease[]       @relation("LeaseCreatedBy")
 }
 
 model Role {
@@ -73,6 +77,7 @@ model Premise {
   availableFrom DateTime?
   leases        Lease[]
   reservations  Reservation[]
+  showings      Showing[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
@@ -93,6 +98,7 @@ model Tenant {
   address     String?
   leases      Lease[]
   payments    Payment[]
+  users       User[]     @relation("UserTenant")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 }
@@ -119,6 +125,13 @@ model Lease {
   dueDay            Int
   penaltyRatePerDay Decimal      @default(0.1) @db.Decimal(5, 3)
   status            LeaseStatus  @default(DRAFT)
+  signedAt          DateTime?
+  signedBy          String?
+  signedFileName    String?
+  createdByUserId   String?
+  createdBy         User?        @relation("LeaseCreatedBy", fields: [createdByUserId], references: [id])
+  reservationId     String?
+  reservation       Reservation? @relation(fields: [reservationId], references: [id])
   premise           Premise      @relation(fields: [premiseId], references: [id])
   tenant            Tenant       @relation(fields: [tenantId], references: [id])
   indexations       Indexation[]
@@ -215,12 +228,15 @@ enum ReservationStatus {
 }
 
 model Reservation {
-  id        String            @id @default(uuid())
-  premiseId String
-  until     DateTime
-  status    ReservationStatus
-  premise   Premise           @relation(fields: [premiseId], references: [id])
-  createdAt DateTime          @default(now())
+  id              String            @id @default(uuid())
+  premiseId       String
+  until           DateTime
+  status          ReservationStatus
+  createdByUserId String?
+  createdBy       User?             @relation("ReservationCreatedBy", fields: [createdByUserId], references: [id])
+  premise         Premise           @relation(fields: [premiseId], references: [id])
+  createdAt       DateTime          @default(now())
+  leases          Lease[]
 }
 
 model VatSetting {
@@ -243,4 +259,60 @@ model AuditLog {
   meta      Json?
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id])
+}
+
+// --- Leads & Showings ---
+
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  WON
+  LOST
+}
+
+enum ShowingStatus {
+  SCHEDULED
+  DONE
+  CANCELLED
+}
+
+model Lead {
+  id           String           @id @default(uuid())
+  name         String?
+  email        String?
+  phone        String?
+  source       String?
+  requirements String?
+  status       LeadStatus       @default(NEW)
+  showings     Showing[]
+  attachments  LeadAttachment[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model Showing {
+  id        String        @id @default(uuid())
+  leadId    String
+  premiseId String?
+  date      DateTime
+  agent     String?
+  comment   String?
+  outcome   String?
+  status    ShowingStatus @default(SCHEDULED)
+  createdAt DateTime      @default(now())
+
+  lead    Lead     @relation(fields: [leadId], references: [id])
+  premise Premise? @relation(fields: [premiseId], references: [id])
+}
+
+model LeadAttachment {
+  id           String   @id @default(uuid())
+  leadId       String
+  filename     String
+  originalName String?
+  mimeType     String?
+  size         Int?
+  createdAt    DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
 }

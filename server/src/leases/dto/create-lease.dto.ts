@@ -38,4 +38,8 @@ export class CreateLeaseDto {
   @IsOptional()
   @IsNumber()
   penaltyRatePerDay?: number; // default 0.1
+
+  @IsOptional()
+  @IsString()
+  reservationId?: string;
 }

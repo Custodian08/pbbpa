@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ПРИЛОЖЕНИЕ В — Листинг скрипта генерации базы данных</title>
+  <style>
+    :root { --fg:#111; --bg:#fff; --muted:#666; --border:#eee; }
+    html, body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif; color:var(--fg); background:var(--bg); }
+    header { padding:24px 20px; border-bottom:1px solid var(--border); }
+    main { padding:20px; max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    h2 { margin-top: 28px; font-size: 20px; }
+    p, li { line-height: 1.55; }
+    .file { color: var(--muted); font-size: 14px; margin: 6px 0 10px; }
+    pre { background:#f7f7f7; padding:12px; border-radius:8px; overflow:auto; border:1px solid var(--border); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ПРИЛОЖЕНИЕ В
+      <div style="font-size:14px;color:#666;font-weight:normal">Листинг скрипта генерации базы данных</div>
+    </h1>
+  </header>
+  <main>
+    <section>
+      <h2>Основной файл описания/генерации схемы БД (Prisma)</h2>
+      <div class="file">Файл: server/prisma/schema.prisma</div>
+      <pre><code>// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Domain Models ---
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  roles        UserRole[]
+  auditLogs    AuditLog[]
+  tenantId     String?
+  tenant       Tenant?    @relation("UserTenant", fields: [tenantId], references: [id])
+  createdReservations Reservation[] @relation("ReservationCreatedBy")
+}
+
+model Role {
+  id    Int        @id @default(autoincrement())
+  name  String     @unique
+  users UserRole[]
+}
+
+model UserRole {
+  userId     String
+  roleId     Int
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+enum PremiseTypeE {
+  OFFICE
+  RETAIL
+  WAREHOUSE
+}
+
+enum RateType {
+  M2
+  FIXED
+}
+
+enum PremiseStatus {
+  FREE
+  RENTED
+  RESERVED
+}
+
+model Premise {
+  id            String        @id @default(uuid())
+  code          String?       @unique
+  type          PremiseTypeE
+  address       String
+  floor         Int?
+  area          Decimal       @db.Decimal(10, 2)
+  rateType      RateType
+  baseRate      Decimal?      @db.Decimal(12, 2)
+  status        PremiseStatus @default(FREE)
+  availableFrom DateTime?
+  leases        Lease[]
+  reservations  Reservation[]
+  showings      Showing[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+enum TenantType {
+  LEGAL
+  INDIVIDUAL
+}
+
+model Tenant {
+  id          String     @id @default(uuid())
+  type        TenantType
+  name        String
+  unp         String     @unique
+  email       String?
+  phone       String?
+  bankAccount String?
+  address     String?
+  leases      Lease[]
+  payments    Payment[]
+  users       User[]      @relation("UserTenant")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+enum LeaseStatus {
+  DRAFT
+  ACTIVE
+  TERMINATING
+  CLOSED
+}
+
+model Lease {
+  id                String       @id @default(uuid())
+  number            String?      @unique
+  date              DateTime?
+  periodFrom        DateTime
+  periodTo          DateTime?
+  premiseId         String
+  tenantId          String
+  base              RateType
+  currency          String       @default("BYN")
+  vatRate           Decimal      @default(20) @db.Decimal(5, 2)
+  deposit           Decimal?     @db.Decimal(12, 2)
+  dueDay            Int
+  penaltyRatePerDay Decimal      @default(0.1) @db.Decimal(5, 3)
+  status            LeaseStatus  @default(DRAFT)
+  signedAt          DateTime?
+  signedBy          String?
+  signedFileName    String?
+  premise           Premise      @relation(fields: [premiseId], references: [id])
+  tenant            Tenant       @relation(fields: [tenantId], references: [id])
+  indexations       Indexation[]
+  accruals          Accrual[]
+  penalties         Penalty[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model Indexation {
+  id            String   @id @default(uuid())
+  leaseId       String
+  factor        Decimal  @db.Decimal(8, 4)
+  effectiveFrom DateTime
+  lease         Lease    @relation(fields: [leaseId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model Accrual {
+  id         String   @id @default(uuid())
+  leaseId    String
+  period     DateTime
+  baseAmount Decimal  @db.Decimal(12, 2)
+  vatAmount  Decimal  @db.Decimal(12, 2)
+  total      Decimal  @db.Decimal(12, 2)
+  lease      Lease    @relation(fields: [leaseId], references: [id])
+  invoice    Invoice?
+  createdAt  DateTime @default(now())
+
+  @@unique([leaseId, period])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id        String        @id @default(uuid())
+  accrualId String        @unique
+  number    String
+  date      DateTime
+  status    InvoiceStatus
+  accrual   Accrual       @relation(fields: [accrualId], references: [id])
+  payments  Payment[]
+  createdAt DateTime      @default(now())
+}
+
+enum PaymentStatus {
+  PENDING
+  APPLIED
+  UNRESOLVED
+  REFUNDED
+}
+
+enum PaymentSource {
+  IMPORT
+  MANUAL
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  tenantId        String
+  amount          Decimal       @db.Decimal(12, 2)
+  date            DateTime
+  linkedInvoiceId String?
+  status          PaymentStatus
+  source          PaymentSource
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  linkedInvoice   Invoice?      @relation(fields: [linkedInvoiceId], references: [id])
+  createdAt       DateTime      @default(now())
+}
+
+model Penalty {
+  id         String   @id @default(uuid())
+  leaseId    String
+  periodFrom DateTime
+  periodTo   DateTime
+  base       Decimal  @db.Decimal(12, 2)
+  ratePerDay Decimal  @db.Decimal(6, 3)
+  amount     Decimal  @db.Decimal(12, 2)
+  lease      Lease    @relation(fields: [leaseId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+enum ReservationStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model Reservation {
+  id        String            @id @default(uuid())
+  premiseId String
+  until     DateTime
+  status    ReservationStatus
+  createdByUserId String?
+  createdBy User? @relation("ReservationCreatedBy", fields: [createdByUserId], references: [id])
+  premise   Premise           @relation(fields: [premiseId], references: [id])
+  createdAt DateTime          @default(now())
+}
+
+model VatSetting {
+  id        Int      @id @default(autoincrement())
+  rate      Decimal  @db.Decimal(5, 2)
+  validFrom DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([rate, validFrom])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  method    String
+  path      String
+  entity    String?
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+// --- Leads & Showings ---
+
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  WON
+  LOST
+}
+
+enum ShowingStatus {
+  SCHEDULED
+  DONE
+  CANCELLED
+}
+
+model Lead {
+  id           String           @id @default(uuid())
+  name         String?
+  email        String?
+  phone        String?
+  source       String?
+  requirements String?
+  status       LeadStatus       @default(NEW)
+  showings     Showing[]
+  attachments  LeadAttachment[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model Showing {
+  id        String         @id @default(uuid())
+  leadId    String
+  premiseId String?
+  date      DateTime
+  agent     String?
+  comment   String?
+  outcome   String?
+  status    ShowingStatus  @default(SCHEDULED)
+  createdAt DateTime       @default(now())
+
+  lead      Lead           @relation(fields: [leadId], references: [id])
+  premise   Premise?       @relation(fields: [premiseId], references: [id])
+}
+
+model LeadAttachment {
+  id           String   @id @default(uuid())
+  leadId       String
+  filename     String
+  originalName String?
+  mimeType     String?
+  size         Int?
+  createdAt    DateTime @default(now())
+
+  lead         Lead     @relation(fields: [leadId], references: [id])
+}
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Как выполняется создание схемы</h2>
+      <p>Создание/обновление схемы выполняется средствами Prisma (миграции/генерация клиента). В проекте предусмотрен сценарий <code>db:setup</code> (server/package.json), который выполняет <code>prisma generate</code> и <code>prisma migrate deploy</code>, затем запускает посев данных из <code>prisma/seed.ts</code>.</p>
+    </section>
+  </main>
+</body>
+</html>

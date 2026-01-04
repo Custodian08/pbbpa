@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { LeasesService } from './leases.service';
 import { LeasesController } from './leases.controller';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [LeasesController],
   providers: [LeasesService, PrismaService],
 })

@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Разделы 4.3.4 — 4.3.6</title>
+  <style>
+    :root { --fg:#111; --bg:#fff; --muted:#666; --accent:#1677ff; }
+    html, body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif; color:var(--fg); background:var(--bg); }
+    header { padding:24px 20px; border-bottom:1px solid #eee; }
+    main { padding:20px; max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    h2 { margin-top: 28px; font-size: 20px; }
+    h3 { margin-top: 22px; font-size: 18px; }
+    nav { margin-top:8px; color: var(--muted); }
+    nav a { color: var(--accent); text-decoration: none; margin-right: 12px; }
+    section { margin: 18px 0 32px; }
+    small { color: var(--muted); }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+    pre { background:#0b1020; color:#e7eaf3; padding:12px; border-radius:6px; overflow:auto; }
+    ul { margin: 8px 0 12px 22px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Разделы 4.3.4 — 4.3.6</h1>
+    <nav>
+      <a href="#sec-4-3-4">4.3.4</a>
+      <a href="#sec-4-3-5">4.3.5</a>
+      <a href="#sec-4-3-6">4.3.6</a>
+    </nav>
+  </header>
+  <main>
+    <section id="sec-4-3-4">
+      <h2>4.3.4. Проектирование схемы информационной модели. Разработка справочников</h2>
+      <p>Информационная модель реализована на <strong>PostgreSQL</strong> и описана в <strong>Prisma</strong> (schema.prisma). Схема соответствует 3НФ: сущности разделены на справочники и факты; связи оформлены внешними ключами, идентификаторы — UUID.</p>
+      <h3>Ключевые сущности и связи</h3>
+      <ul>
+        <li><strong>User</strong> (id, email, passwordHash, roles[], <em>tenantId?</em>) → (m:1) Tenant</li>
+        <li><strong>Tenant</strong> (id, name, unp, contacts) ← (1:m) Lease, Invoice, Payment</li>
+        <li><strong>Premise</strong> (id, code, address, type, area, status: FREE|RESERVED|RENTED, availableFrom)</li>
+        <li><strong>Reservation</strong> (id, premiseId, until, status: ACTIVE|CANCELLED|EXPIRED, <em>createdByUserId</em>) → Premise, User</li>
+        <li><strong>Lease</strong> (id, tenantId, premiseId, startDate, endDate?, status: DRAFT|ACTIVE|TERMINATING|CLOSED, rate, vatRate)
+          → Tenant, Premise</li>
+        <li><strong>Accrual</strong> (id, leaseId, periodFrom, periodTo, baseAmount, vatAmount, total)</li>
+        <li><strong>Invoice</strong> (id, accrualId, number, date, status: DRAFT|ISSUED|PAID|PARTIAL|OVERDUE, total)</li>
+        <li><strong>Payment</strong> (id, tenantId, invoiceId?, amount, date, method, status)</li>
+      </ul>
+      <p><small>Примечание:</small> индексы созданы по <code>tenantId</code>, <code>premiseId</code>, датам периодов, номеру счёта; уникальные ограничения — номер счёта в пределах года/организации.</p>
+      <h3>Справочники</h3>
+      <ul>
+        <li><strong>PremiseType</strong>: { OFFICE, RETAIL, WAREHOUSE, OTHER } — типы помещений.</li>
+        <li><strong>VatRate</strong>: { NONE, VAT_10, VAT_20 } — ставки НДС с датами действия.</li>
+        <li><strong>Indexation</strong>: правило индексации арендной ставки (тип, коэффициент, периодичность, дата начала).</li>
+        <li><strong>PaymentMethod</strong>: { BANK_TRANSFER, CASH, CARD }.</li>
+        <li><strong>Role</strong>: { ADMIN, MANAGER, OPERATOR, ANALYST, EXEC, USER } — для UI и RBAC.</li>
+      </ul>
+      <h3>Правила целостности</h3>
+      <ul>
+        <li>Нельзя удалить <strong>Premise</strong>, если есть связанные <strong>Lease</strong> (блокирующее ограничение).</li>
+        <li><strong>Reservation</strong> уникальна по (premiseId, status='ACTIVE') в текущий момент времени.</li>
+        <li>Статусы <strong>Premise</strong> синхронизируются с резервациями и договорами.</li>
+      </ul>
+      <h3>Миграции</h3>
+      <ul>
+        <li>Управляются Prisma Migrate (<code>npx prisma migrate</code> / <code>db push</code>), seed‑данные для демо.</li>
+      </ul>
+    </section>
+
+    <section id="sec-4-3-5">
+      <h2>4.3.5. Разработка и описание алгоритмов бизнес‑логики программного приложения</h2>
+
+      <h3>Алгоритм аутентификации и выдачи ролей</h3>
+      <p><strong>Цель</strong>: проверить учётные данные, выдать JWT/сессию и роли (USER, OPERATOR, MANAGER, ADMIN и др.).</p>
+      <p><strong>Компоненты</strong>: Login (React) → api.ts → AuthController/AuthService (NestJS) → MeController → Guards/RBAC.</p>
+      <p><strong>Шаги</strong>:</p>
+      <ol>
+        <li>На странице входа введите логин и пароль и нажмите «Войти».</li>
+        <li>Сервер проверит корректность данных. При успехе создаст сессию и сохранит токен входа в браузере.</li>
+        <li>Приложение запросит краткие сведения о вас (профиль и роли) у сервера.</li>
+        <li>После получения ролей интерфейс автоматически покажет доступные разделы, а лишние пункты меню будут скрыты.</li>
+        <li>Если данные неверные, появится понятное сообщение об ошибке и возможность попробовать снова.</li>
+      </ol>
+      <p><strong>Результат</strong>: авторизованный пользователь; при ошибке — 401 и сообщение в UI.</p>
+      <pre><code>// NestJS (фрагмент)
+@Get('me')
+@UseGuards(JwtAuthGuard)
+me(@Req() req) { const u = req.user; return { id: u.id, email: u.email, roles: u.roles }; }
+</code></pre>
+
+      <h3>Алгоритм каталога и фильтрации помещений</h3>
+      <p><strong>Цель</strong>: получить список помещений с фильтрами и учётом ролей (USER видит только FREE).</p>
+      <p><strong>Компоненты</strong>: Catalog.tsx → PremisesController → PremisesService → Prisma.</p>
+      <p><strong>Шаги</strong>:</p>
+      <ol>
+        <li>Откройте страницу «Каталог» и при необходимости задайте фильтры (тип, площадь, статус).</li>
+        <li>Приложение отправит запрос на сервер с выбранными фильтрами.</li>
+        <li>Если вы вошли как обычный пользователь, в ответ придут только свободные для аренды помещения.</li>
+        <li>Список помещений отобразится в виде карточек/таблицы с ключевыми параметрами.</li>
+        <li>Для недоступных помещений кнопки действий будут отключены.</li>
+      </ol>
+      <p><strong>Результат</strong>: корректный список; кнопки брони/аренды активны только для FREE.</p>
+      <pre><code>async list(user, q) {
+  const where = buildFilters(q);
+  if (user.roles.includes('USER')) where.status = 'FREE';
+  return this.prisma.premise.findMany({ where, orderBy: { code: 'asc' } });
+}
+</code></pre>
+
+      <h3>Алгоритм постановки брони</h3>
+      <p><strong>Цель</strong>: создать активную бронь, зафиксировать инициатора.</p>
+      <p><strong>Предпосылки</strong>: помещение FREE; нет активной брони/договора; <code>until</code> в будущем (до 23:59:59).</p>
+      <p><strong>Компоненты</strong>: Catalog/MyReservations (React) → ReservationsController → ReservationsService → Prisma.</p>
+      <p><strong>Шаги</strong>:</p>
+      <ol>
+        <li>На странице «Каталог» выберите помещение со статусом «Свободно» и нажмите «Забронировать».</li>
+        <li>Укажите дату, до которой нужна бронь (бронь действует до конца этого дня), и подтвердите действие.</li>
+        <li>Система проверит, что помещение действительно свободно и не забронировано другим пользователем.</li>
+        <li>При успешной проверке бронь будет создана, а помещение отметится как «Зарезервировано».</li>
+        <li>Откройте «Мои резервации», чтобы убедиться, что запись появилась в списке.</li>
+      </ol>
+      <p><strong>Результат</strong>: активная бронь; видна в «Мои резервации».</p>
+      <pre><code>async create(dto, userId) {
+  const now = new Date();
+  const until = new Date(dto.until); until.setHours(23,59,59,999);
+  if (until.getTime() &lt;= now.getTime()) throw new ConflictException('until in the past');
+  const p = await this.prisma.premise.findUnique({ where: { id: dto.premiseId } });
+  if (!p || p.status !== 'FREE') throw new ConflictException('not FREE');
+  const exists = await this.prisma.reservation.findFirst({ where: { premiseId: dto.premiseId, status: 'ACTIVE', until: { gt: now } } });
+  if (exists) throw new ConflictException('already reserved');
+  const res = await this.prisma.reservation.create({ data: { ...dto, until, status: 'ACTIVE', createdByUserId: userId } });
+  await this.prisma.premise.update({ where: { id: dto.premiseId }, data: { status: 'RESERVED' } });
+  return res;
+}
+</code></pre>
+
+      <h3>Алгоритм отмены брони</h3>
+      <p><strong>Цель</strong>: отменить активную бронь и при отсутствии других ограничений вернуть помещение в FREE.</p>
+      <p><strong>Шаги</strong>:</p>
+      <ol>
+        <li>Откройте раздел «Мои резервации» и найдите нужную активную бронь.</li>
+        <li>Нажмите «Отменить» и подтвердите действие.</li>
+        <li>Система убедится, что вы имеете право отмены именно этой брони.</li>
+        <li>Бронь получит статус «Отменена». Если нет других активных броней и договора на это помещение, оно снова станет «Свободно».</li>
+        <li>Список обновится, и статус будет показан сразу.</li>
+      </ol>
+      <pre><code>async cancel(id, user) {
+  const res = await this.getOrThrow(id);
+  if (!canCancel(res, user)) throw new ForbiddenException();
+  await this.prisma.reservation.update({ where: { id }, data: { status: 'CANCELLED' } });
+  const hasActive = await this.prisma.reservation.findFirst({ where: { premiseId: res.premiseId, status: 'ACTIVE' } });
+  const hasLease = await this.prisma.lease.findFirst({ where: { premiseId: res.premiseId, status: { in: ['ACTIVE','TERMINATING'] } } });
+  if (!hasActive &amp;&amp; !hasLease) await this.prisma.premise.update({ where: { id: res.premiseId }, data: { status: 'FREE' } });
+}
+</code></pre>
+
+      <h3>Алгоритм «Арендовать и оплатить»</h3>
+      <p><strong>Цель</strong>: оформить аренду и оплату одним действием: договор → начисление/счёт → платёж.</p>
+      <p><strong>Предпосылки</strong>: user.tenantId задан; помещение FREE; суммы/даты валидны.</p>
+      <p><strong>Шаги</strong>:</p>
+      <ol>
+        <li>Убедитесь, что ваш пользователь привязан к нужному арендатору (иначе операция будет отклонена).</li>
+        <li>В «Каталоге» выберите свободное помещение и нажмите «Арендовать и оплатить».</li>
+        <li>Система проверит доступность помещения и ваши права, затем создаст договор аренды.</li>
+        <li>Будет автоматически сформирован счёт за выбранный период и сразу проведён платеж.</li>
+        <li>Статус помещения изменится на «Сдано». Записи появятся в «Мои счета» и «Мои платежи».</li>
+      </ol>
+      <pre><code>async rentAndPay(user, dto) {
+  const tenant = await this.getTenant(user);
+  const premise = await this.assertFree(dto.premiseId);
+  const lease = await this.createActiveLease(tenant.id, premise.id, dto);
+  const invoice = await this.createInitialInvoice(lease.id);
+  const payment = await this.createPayment(invoice.id, invoice.total);
+  await this.prisma.premise.update({ where: { id: premise.id }, data: { status: 'RENTED' } });
+  return { lease, invoice, payment };
+}
+</code></pre>
+
+      <h3>Алгоритм биллинга за период</h3>
+      <p><strong>Цель</strong>: сформировать начисления и счета по ACTIVE‑договорам за период.</p>
+      <p><strong>Шаги</strong>:</p>
+      <ol>
+        <li>Сотрудник открывает раздел «Счета» и выбирает команду «Запустить биллинг».</li>
+        <li>Указывает период, за который нужно выставить счета, и подтверждает запуск.</li>
+        <li>Система находит все действующие договоры и рассчитывает суммы с учётом ставок и индексаций.</li>
+        <li>По каждому договору создаётся счёт; при необходимости пользователям направляются уведомления.</li>
+        <li>После завершения обновите список — новые счета будут видны в интерфейсе.</li>
+      </ol>
+      <pre><code>async run(from, to) {
+  const leases = await this.prisma.lease.findMany({ where: { status: 'ACTIVE' } });
+  for (const l of leases) {
+    const accrual = await this.createAccrual(l, from, to);
+    await this.createInvoiceFromAccrual(accrual);
+  }
+}
+</code></pre>
+
+      <h3>Алгоритм генерации PDF счёта</h3>
+      <p><strong>Цель</strong>: сформировать PDF с кириллицей и корректно отдать файл.</p>
+      <p><strong>Шаги</strong>:</p>
+      <ol>
+        <li>На странице со списком счетов нажмите кнопку «PDF» у нужного документа.</li>
+        <li>Сервер сформирует файл: подключит шрифт с поддержкой кириллицы и аккуратно соберёт содержимое.</li>
+        <li>После генерации файл будет передан вашему браузеру для скачивания или открытия.</li>
+        <li>Откройте файл и убедитесь, что все реквизиты читаемы и отображаются корректно.</li>
+      </ol>
+      <pre><code>const doc = new PDFDocument();
+const buf = collect(doc);
+doc.font(process.platform==='win32' ? 'C:\\Windows\\Fonts\\arial.ttf' : '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
+doc.text('Счёт на оплату');
+doc.end();
+res.setHeader('Content-Type','application/pdf');
+res.end(await buf);
+</code></pre>
+
+      <h3>Алгоритм удаления помещения (ограничения)</h3>
+      <p><strong>Цель</strong>: удалить помещение без договоров; при наличии договоров — безопасно отказать; иначе — каскадно удалить резервации/показы и затем помещение.</p>
+      <p><strong>Шаги</strong>:</p>
+      <ol>
+        <li>Сотрудник открывает раздел «Помещения» и выбирает объект для удаления.</li>
+        <li>Система проверяет, нет ли связанных активных или закрытых договоров.</li>
+        <li>Если договоры есть, операция отменяется с понятным сообщением о причине.</li>
+        <li>Если договоров нет, система удаляет связанные брони и показы этого помещения.</li>
+        <li>После этого помещение удаляется из базы, а список обновляется.</li>
+      </ol>
+      <pre><code>async remove(id){
+  const hasLeases = await this.prisma.lease.count({ where:{ premiseId:id } });
+  if (hasLeases) throw new ConflictException('Premise has leases');
+  await this.prisma.reservation.deleteMany({ where:{ premiseId:id } });
+  await this.prisma.showing?.deleteMany?.({ where:{ premiseId:id } });
+  await this.prisma.premise.delete({ where:{ id } });
+}
+</code></pre>
+    </section>
+
+    <section id="sec-4-3-6">
+      <h2>4.3.6. Визуализация данных (дашборд)</h2>
+      <p>В приложении реализуется дашборд для оперативного контроля финансов и загрузки фонда площадей. Он отвечает на вопросы: «какова выручка по периодам», «какова заполняемость», «какова просрочка и DSO», «динамика платежей/счётов».</p>
+      <h3>Входные данные и расчёты</h3>
+      <ul>
+        <li><strong>Выручка</strong>: сумма <code>invoice.total</code> по статусам ISSUED/PAID за период (агрегирование по месяцам).</li>
+        <li><strong>Заполняемость (Occupancy)</strong>: <code>sum(leasedArea) / sum(totalArea)</code> по активным договорам на конец периода.</li>
+        <li><strong>Aging</strong>: группировка просроченных счетов по корзинам 0–30/31–60/61–90/90+ дней.</li>
+        <li><strong>DSO</strong>: средний срок погашения дебиторки: <code>DSO = (AccountsReceivable / TotalCreditSales) * Days</code>.</li>
+        <li><strong>Платежи</strong>: сумма платежей по периодам и методам (столбчатые диаграммы).</li>
+      </ul>
+      <h3>Визуальные компоненты</h3>
+      <ul>
+        <li><strong>Line/Area</strong>: выручка по месяцам (Recharts/ECharts).</li>
+        <li><strong>Stacked Bar</strong>: счета по статусам (ISSUED/PAID/OVERDUE).</li>
+        <li><strong>Donut/Pie</strong>: структура площадей по типам помещений (OFFICE/RETAIL/… ).</li>
+        <li><strong>Heatmap</strong>: календарь платежей по дням.</li>
+        <li><strong>KPI‑тайлы</strong>: Occupancy %, AR balance, DSO, количество активных договоров.</li>
+      </ul>
+      <h3>Источник данных</h3>
+      <ul>
+        <li>REST эндпоинты <code>/analytics/*</code> (server) или агрегирование на клиенте из <code>/leases</code>, <code>/invoices</code>, <code>/payments</code>, <code>/premises</code>.</li>
+        <li>Кэширование через React Query, фоновое обновление.</li>
+      </ul>
+      <h3>Выводы по дашборду</h3>
+      <p>Дашборд позволяет оценить динамику доходов и платежей, текущую заполняемость, структуру дебиторки и эффективность сборов (DSO). На его основе принимаются решения о корректировке ставок, работе с просрочкой и загрузке фонда.</p>
+    </section>
+  </main>
+</body>
+</html>

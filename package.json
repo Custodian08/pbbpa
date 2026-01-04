@@ -1,0 +1,14 @@
+{
+  "name": "landlord-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "setup": "npm install --prefix server && npm install --prefix client",
+    "server:dev": "npm run start:dev --prefix server",
+    "client:dev": "npm run dev --prefix client",
+    "dev": "concurrently -k -n SERVER,CLIENT -c green,blue \"npm:server:dev\" \"npm:client:dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

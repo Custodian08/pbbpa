@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Данные проекта и архитектура приложения</title>
+  <style>
+    :root { --fg:#111; --bg:#fff; --muted:#666; --accent:#1677ff; }
+    html, body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif; color:var(--fg); background:var(--bg); }
+    header { padding:24px 20px; border-bottom:1px solid #eee; }
+    main { padding:20px; max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    h2 { margin-top: 28px; font-size: 20px; }
+    h3 { margin-top: 22px; font-size: 18px; }
+    p, li { line-height: 1.55; }
+    code { background:#f5f5f5; padding:1px 4px; border-radius:4px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { border:1px solid #eee; border-radius:8px; padding:12px 14px; background:#fff; }
+    figure { margin: 16px 0; }
+    figcaption { margin: 8px 0 6px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Данные проекта и архитектура программного приложения</h1>
+  </header>
+  <main>
+    <section id="info-model-design">
+      <h2>3.3 Проектирование схемы информационной модели предметной области</h2>
+      <p>Проектирование БД выполнялось в три этапа, с учётом предметной области «аренда коммерческих помещений» и выбранного стека (PostgreSQL + Prisma ORM):</p>
+      <ul>
+        <li><strong>Концептуальное проектирование</strong> — анализ сущностей и связей реального мира без привязки к реализации: Арендатор, Помещение, Бронь, Договор, Начисление, Счёт, Платёж, Пользователь и роли.</li>
+        <li><strong>Логическое проектирование</strong> — формализация сущностей и отношений в виде ER‑модели и ограничений целостности (кардинальности, обязательность, уникальность). На этом этапе закреплены ключи, внешние ключи и справочники через перечисления.</li>
+        <li><strong>Физическое проектирование</strong> — описание конкретной реализации в PostgreSQL через Prisma schema: типы колонок (в т.ч. Decimal с точностью), индексы/уникальные ключи, каскады, значения по умолчанию.</li>
+      </ul>
+
+      <p>Для минимизации избыточности и ускорения операций чтения/записи модель приведена как минимум к третьей нормальной форме: атрибуты атомарны, повторяющиеся группы вынесены в отдельные таблицы, транзитивные зависимости исключены. Связи «многие‑ко‑многим» для ролей реализованы через связывающую таблицу <code>UserRole</code>.</p>
+
+      <figure>
+        <figcaption>ER‑диаграмма информационной модели (актуальная для проекта)</figcaption>
+        <img src="diagrams/6.2-info-model-detailed.svg" alt="ER diagram" style="width:100%;max-width:980px;border:1px solid #eee" />
+      </figure>
+
+      <h3>Основные таблицы и атрибуты (Prisma/PostgreSQL)</h3>
+      <ul>
+        <li><strong>User</strong>: id, email (unique), passwordHash, fullName?, isActive, tenantId? → Tenant. Роли через <code>UserRole</code>, аудит через <code>AuditLog</code>. Связь 0..1:1 с Tenant, 1:М с Reservation (createdBy).</li>
+        <li><strong>Role</strong> и <strong>UserRole</strong>: справочники ролей и связующая таблица для RBAC, составной PK (<code>userId, roleId</code>), каскадное удаление.</li>
+        <li><strong>Tenant</strong>: id, type (LEGAL/INDIVIDUAL), name, unp (unique), email?, phone?, bankAccount?, address?. Связи: 1:М с Lease и Payment; 1:М с User (опционально).</li>
+        <li><strong>Premise</strong>: id, code (unique?), type (OFFICE/RETAIL/WAREHOUSE), address, floor?, area Decimal(10,2), rateType (M2/FIXED), baseRate?, status (FREE/RENTED/RESERVED), availableFrom?. Связи: 1:М с Lease, Reservation, Showing.</li>
+        <li><strong>Reservation</strong>: id, premiseId → Premise, until, status (ACTIVE/EXPIRED/CANCELLED), createdByUserId? → User. Инварианты исключают пересечение с активным договором и вторичную бронь.</li>
+        <li><strong>Lease</strong>: id, number (unique?), date?, periodFrom, periodTo?, premiseId → Premise, tenantId → Tenant, base (RateType), currency BYN, vatRate, deposit?, dueDay, penaltyRatePerDay, status (DRAFT/ACTIVE/TERMINATING/CLOSED), signedAt?, signedBy?, signedFileName?. Связи: 1:М с Indexation, Accrual, Penalty.</li>
+        <li><strong>Indexation</strong>: id, leaseId → Lease, factor Decimal(8,4), effectiveFrom.</li>
+        <li><strong>Accrual</strong>: id, leaseId → Lease, period (уникален в паре с leaseId), baseAmount, vatAmount, total.</li>
+        <li><strong>Invoice</strong>: id, accrualId (unique) → Accrual, number, date, status (DRAFT/SENT/PAID/PARTIALLY_PAID/OVERDUE/CANCELLED).</li>
+        <li><strong>Payment</strong>: id, tenantId → Tenant, amount, date, linkedInvoiceId? → Invoice, status (PENDING/APPLIED/UNRESOLVED/REFUNDED), source (IMPORT/MANUAL).</li>
+        <li><strong>Penalty</strong>: id, leaseId → Lease, periodFrom, periodTo, base, ratePerDay, amount.</li>
+        <li><strong>VatSetting</strong>: id, rate, validFrom (уникальность пары <code>rate, validFrom</code>).</li>
+        <li><strong>AuditLog</strong>: аудит действий пользователей (userId?, action, method, path, entity?, entityId?, meta, createdAt).</li>
+        <li><strong>Lead / Showing / LeadAttachment</strong>: сущности пресейла (лиды, показы помещений, вложения) — не влияют на биллинг, но связаны с <code>Premise</code> и используются в CRM‑части.</li>
+      </ul>
+
+      <h3>Кардинальности и ограничения</h3>
+      <ul>
+        <li><strong>Lease</strong> → <strong>Premise</strong> и <strong>Tenant</strong>: многие‑к‑одному. Для одного Premise не допускается пересечение активных периодов (проверяется в сервисе).</li>
+        <li><strong>Accrual</strong> → <strong>Lease</strong>: многие‑к‑одному, уникальность (<code>leaseId, period</code>).</li>
+        <li><strong>Invoice</strong> → <strong>Accrual</strong>: 1:1 (через уникальный <code>accrualId</code>).</li>
+        <li><strong>Payment</strong> → <strong>Invoice</strong>: многие‑к‑одному (опционально); → <strong>Tenant</strong>: многие‑к‑одному.</li>
+        <li><strong>Reservation</strong> → <strong>Premise</strong>: многие‑к‑одному; создатель → <strong>User</strong> (опционально).</li>
+      </ul>
+
+      <h3>Семантические инварианты (в коде сервиса)</h3>
+      <ul>
+        <li><strong>ReservationsService</strong>: бронь возможна только в будущем; запрещено, если есть активная бронь или активный/завершаемый договор; при отмене/истечении статус помещения корректируется.</li>
+        <li><strong>LeasesService</strong>: контроль пересечения периодов для одного помещения (ACTIVE/TERMINATING), валидация <code>periodTo ≥ periodFrom</code>.</li>
+        <li><strong>PaymentsService</strong>: статус счёта пересчитывается при привязке/возврате платежей; при несовпадении арендатора платеж помечается как <code>UNRESOLVED</code>.</li>
+      </ul>
+      <h3>Детализированное описание таблиц и полей</h3>
+      <p>Ниже приведены таблицы (модели Prisma) с полями и назначением, а также основные связи с указанием кардинальности.</p>
+
+      <h4>Таблица «User»</h4>
+      <p>Назначение: хранение учётных записей пользователей приложения. Связи: M:N c «Role» через «UserRole»; 0..1:1 с «Tenant»; 1:М как создатель в «Reservation»; 1:М с «AuditLog».</p>
+      <ul>
+        <li>id — идентификатор пользователя (UUID, PK).</li>
+        <li>email — адрес электронной почты (уникальный).</li>
+        <li>passwordHash — хэш пароля.</li>
+        <li>fullName — ФИО (опционально).</li>
+        <li>isActive — признак активности (по умолчанию true).</li>
+        <li>tenantId — идентификатор арендатора (опционально), связь с «Tenant».</li>
+        <li>createdAt — дата создания записи.</li>
+        <li>updatedAt — дата последнего изменения.</li>
+      </ul>
+
+      <h4>Таблица «Role»</h4>
+      <p>Назначение: справочник ролей доступа. Связи: M:N с «User» через «UserRole».</p>
+      <ul>
+        <li>id — идентификатор роли (Int, автоинкремент, PK).</li>
+        <li>name — системное имя роли (уникальное).</li>
+      </ul>
+
+      <h4>Таблица «UserRole»</h4>
+      <p>Назначение: связывающая таблица пользователей и ролей (RBAC). Связи: М:1 к «User», М:1 к «Role».</p>
+      <ul>
+        <li>userId — идентификатор пользователя (FK → User.id, каскадное удаление).</li>
+        <li>roleId — идентификатор роли (FK → Role.id, каскадное удаление).</li>
+        <li>assignedAt — дата назначения роли.</li>
+        <li>PK — составной по полям (userId, roleId).</li>
+      </ul>
+
+      <h4>Таблица «Tenant»</h4>
+      <p>Назначение: контрагент‑арендатор. Связи: 1:М с «Lease», 1:М с «Payment», 1:М с «User».</p>
+      <ul>
+        <li>id — идентификатор арендатора (UUID, PK).</li>
+        <li>type — тип арендатора (enum LEGAL|INDIVIDUAL).</li>
+        <li>name — наименование.</li>
+        <li>unp — учётный номер плательщика (уникальный).</li>
+        <li>email — email (опционально).</li>
+        <li>phone — телефон (опционально).</li>
+        <li>bankAccount — расчётный счёт (опционально).</li>
+        <li>address — адрес (опционально).</li>
+        <li>createdAt — дата создания записи.</li>
+        <li>updatedAt — дата последнего изменения.</li>
+      </ul>
+
+      <h4>Таблица «Premise»</h4>
+      <p>Назначение: помещение/площадь (объект аренды). Связи: 1:М с «Lease», 1:М с «Reservation», 1:М с «Showing».</p>
+      <ul>
+        <li>id — идентификатор помещения (UUID, PK).</li>
+        <li>code — инвентарный код (опционально, уникальный).</li>
+        <li>type — тип помещения (enum OFFICE|RETAIL|WAREHOUSE).</li>
+        <li>address — адрес.</li>
+        <li>floor — этаж (опционально).</li>
+        <li>area — площадь (Decimal(10,2)).</li>
+        <li>rateType — тип базовой ставки (enum M2|FIXED).</li>
+        <li>baseRate — базовая ставка (опционально, Decimal(12,2)).</li>
+        <li>status — статус (enum FREE|RENTED|RESERVED).</li>
+        <li>availableFrom — доступно с даты (опционально).</li>
+        <li>createdAt — дата создания записи.</li>
+        <li>updatedAt — дата последнего изменения.</li>
+      </ul>
+
+      <h4>Таблица «Lease»</h4>
+      <p>Назначение: договор аренды и его жизненный цикл. Связи: М:1 к «Tenant», М:1 к «Premise», 1:М с «Indexation», «Accrual», «Penalty».</p>
+      <ul>
+        <li>id — идентификатор договора (UUID, PK).</li>
+        <li>number — номер договора (опционально, уникальный при присвоении).</li>
+        <li>date — дата договора (опционально).</li>
+        <li>periodFrom — дата начала периода аренды.</li>
+        <li>periodTo — дата окончания периода аренды (опционально).</li>
+        <li>premiseId — идентификатор помещения (FK → Premise.id).</li>
+        <li>tenantId — идентификатор арендатора (FK → Tenant.id).</li>
+        <li>base — база расчёта (enum RateType: M2|FIXED).</li>
+        <li>currency — валюта договора (по умолчанию BYN).</li>
+        <li>vatRate — ставка НДС, % (Decimal(5,2), по умолчанию 20).</li>
+        <li>deposit — депозит (опционально, Decimal(12,2)).</li>
+        <li>dueDay — день оплаты по счёту (Int).</li>
+        <li>penaltyRatePerDay — пеня в день (Decimal(5,3), по умолчанию 0.1).</li>
+        <li>status — статус договора (enum DRAFT|ACTIVE|TERMINATING|CLOSED).</li>
+        <li>signedAt — дата подписания (опционально).</li>
+        <li>signedBy — кем подписан (опционально).</li>
+        <li>signedFileName — файл подписанного договора (опционально).</li>
+        <li>createdAt — дата создания записи.</li>
+        <li>updatedAt — дата последнего изменения.</li>
+      </ul>
+
+      <h4>Таблица «Indexation»</h4>
+      <p>Назначение: индексации ставок по договору. Связи: М:1 к «Lease».</p>
+      <ul>
+        <li>id — идентификатор индексации (UUID, PK).</li>
+        <li>leaseId — идентификатор договора (FK → Lease.id).</li>
+        <li>factor — коэффициент индексации (Decimal(8,4)).</li>
+        <li>effectiveFrom — дата вступления индексации в силу.</li>
+        <li>createdAt — дата создания записи.</li>
+      </ul>
+
+      <h4>Таблица «Accrual»</h4>
+      <p>Назначение: начисления по договору за период. Связи: М:1 к «Lease», 1:1 с «Invoice».</p>
+      <ul>
+        <li>id — идентификатор начисления (UUID, PK).</li>
+        <li>leaseId — идентификатор договора (FK → Lease.id).</li>
+        <li>period — период начисления (DateTime). Уникальность в паре (leaseId, period).</li>
+        <li>baseAmount — база начисления (Decimal(12,2)).</li>
+        <li>vatAmount — сумма НДС (Decimal(12,2)).</li>
+        <li>total — сумма к оплате (Decimal(12,2)).</li>
+        <li>createdAt — дата создания записи.</li>
+      </ul>
+
+      <h4>Таблица «Invoice»</h4>
+      <p>Назначение: счёт на оплату по начислению. Связи: 1:1 с «Accrual» (по полю accrualId), 1:М с «Payment».</p>
+      <ul>
+        <li>id — идентификатор счёта (UUID, PK).</li>
+        <li>accrualId — идентификатор начисления (уникальный FK → Accrual.id).</li>
+        <li>number — номер счёта.</li>
+        <li>date — дата выставления.</li>
+        <li>status — статус (enum DRAFT|SENT|PAID|PARTIALLY_PAID|OVERDUE|CANCELLED).</li>
+        <li>createdAt — дата создания записи.</li>
+      </ul>
+
+      <h4>Таблица «Payment»</h4>
+      <p>Назначение: учёт входящих платежей. Связи: М:1 к «Tenant», М:1 к «Invoice» (опционально через linkedInvoiceId).</p>
+      <ul>
+        <li>id — идентификатор платежа (UUID, PK).</li>
+        <li>tenantId — идентификатор арендатора (FK → Tenant.id).</li>
+        <li>amount — сумма платежа (Decimal(12,2)).</li>
+        <li>date — дата платежа.</li>
+        <li>linkedInvoiceId — связанный счёт (опционально, FK → Invoice.id).</li>
+        <li>status — статус платежа (enum PENDING|APPLIED|UNRESOLVED|REFUNDED).</li>
+        <li>source — источник (enum IMPORT|MANUAL).</li>
+        <li>createdAt — дата создания записи.</li>
+      </ul>
+
+      <h4>Таблица «Penalty»</h4>
+      <p>Назначение: начисления пени по договору. Связи: М:1 к «Lease».</p>
+      <ul>
+        <li>id — идентификатор пени (UUID, PK).</li>
+        <li>leaseId — идентификатор договора (FK → Lease.id).</li>
+        <li>periodFrom — дата начала периода просрочки.</li>
+        <li>periodTo — дата окончания периода просрочки.</li>
+        <li>base — база для расчёта пени (Decimal(12,2)).</li>
+        <li>ratePerDay — ставка пени в день (Decimal(6,3)).</li>
+        <li>amount — рассчитанная сумма пени (Decimal(12,2)).</li>
+        <li>createdAt — дата создания записи.</li>
+      </ul>
+
+      <h4>Таблица «Reservation»</h4>
+      <p>Назначение: бронь помещения. Связи: М:1 к «Premise»; М:1 к «User» как создателю (опционально).</p>
+      <ul>
+        <li>id — идентификатор брони (UUID, PK).</li>
+        <li>premiseId — идентификатор помещения (FK → Premise.id).</li>
+        <li>until — дата, до которой действует бронь (включительно).</li>
+        <li>status — статус брони (enum ACTIVE|EXPIRED|CANCELLED).</li>
+        <li>createdByUserId — идентификатор пользователя‑создателя (опционально, FK → User.id).</li>
+        <li>createdAt — дата создания записи.</li>
+      </ul>
+
+      <h4>Таблица «VatSetting»</h4>
+      <p>Назначение: справочник версий ставки НДС. Связи: нет явных FK из договоров (ставка хранится числом в «Lease»).</p>
+      <ul>
+        <li>id — идентификатор записи (Int, автоинкремент, PK).</li>
+        <li>rate — ставка НДС, % (Decimal(5,2)).</li>
+        <li>validFrom — дата начала действия ставки.</li>
+        <li>createdAt — дата создания записи.</li>
+        <li>Уникальность составная: (rate, validFrom).</li>
+      </ul>
+
+      <h4>Таблица «AuditLog»</h4>
+      <p>Назначение: аудит действий пользователей. Связи: М:1 к «User» (опционально).</p>
+      <ul>
+        <li>id — идентификатор записи (UUID, PK).</li>
+        <li>userId — идентификатор пользователя (опционально, FK → User.id).</li>
+        <li>action — доменное действие (например, CREATE_LEASE).</li>
+        <li>method — HTTP‑метод.</li>
+        <li>path — путь запроса.</li>
+        <li>entity — сущность предметной области (опционально).</li>
+        <li>entityId — идентификатор сущности (опционально).</li>
+        <li>meta — дополнительные данные (JSON) (опционально).</li>
+        <li>createdAt — дата и время события.</li>
+      </ul>
+
+      <h4>Таблица «Lead»</h4>
+      <p>Назначение: лид пресейла (CRM‑часть). Связи: 1:М с «Showing», 1:М с «LeadAttachment».</p>
+      <ul>
+        <li>id — идентификатор лида (UUID, PK).</li>
+        <li>name — имя контакта (опционально).</li>
+        <li>email — email (опционально).</li>
+        <li>phone — телефон (опционально).</li>
+        <li>source — источник обращения (опционально).</li>
+        <li>requirements — требования/запрос (опционально).</li>
+        <li>status — статус лида (enum NEW|IN_PROGRESS|WON|LOST).</li>
+        <li>createdAt — дата создания записи.</li>
+        <li>updatedAt — дата последнего изменения.</li>
+      </ul>
+
+      <h4>Таблица «Showing»</h4>
+      <p>Назначение: показ помещения для лида. Связи: М:1 к «Lead», М:1 к «Premise» (опционально).</p>
+      <ul>
+        <li>id — идентификатор показа (UUID, PK).</li>
+        <li>leadId — идентификатор лида (FK → Lead.id).</li>
+        <li>premiseId — идентификатор помещения (опционально, FK → Premise.id).</li>
+        <li>date — дата и время показа.</li>
+        <li>agent — агент/ответственный (опционально).</li>
+        <li>comment — комментарий (опционально).</li>
+        <li>outcome — результат показа (опционально).</li>
+        <li>status — статус показа (enum SCHEDULED|DONE|CANCELLED).</li>
+        <li>createdAt — дата создания записи.</li>
+      </ul>
+
+      <h4>Таблица «LeadAttachment»</h4>
+      <p>Назначение: файлы, приложенные к лиду. Связи: М:1 к «Lead».</p>
+      <ul>
+        <li>id — идентификатор вложения (UUID, PK).</li>
+        <li>leadId — идентификатор лида (FK → Lead.id).</li>
+        <li>filename — имя файла на сервере.</li>
+        <li>originalName — исходное имя файла (опционально).</li>
+        <li>mimeType — MIME‑тип (опционально).</li>
+        <li>size — размер, байт (опционально).</li>
+        <li>createdAt — дата загрузки.</li>
+      </ul>
+    </section>
+    <section id="data">
+      <h2>Сущности данных и связи</h2>
+      <p>Ниже приведён краткий обзор основных сущностей БД PostgreSQL и их отношений (многие‑к‑одному указаны стрелкой →):</p>
+      <div class="grid">
+        <div class="card">
+          <h3>Tenant</h3>
+          <ul>
+            <li>Атрибуты: id, name, unp, contacts</li>
+            <li>Связи: User → Tenant, Lease → Tenant, Payment → Tenant</li>
+            <li>Назначение: арендатор (организация/клиент)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>User</h3>
+          <ul>
+            <li>Атрибуты: id, email, passwordHash, roles[], tenantId?</li>
+            <li>Связи: User → Tenant (опционально)</li>
+            <li>Назначение: авторизация, роли и доступ к данным</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Premise</h3>
+          <ul>
+            <li>Атрибуты: id, code, address, type, area, status, availableFrom</li>
+            <li>Связи: Reservation → Premise, Lease → Premise</li>
+            <li>Назначение: помещение/площадь, объект аренды</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Reservation</h3>
+          <ul>
+            <li>Атрибуты: id, premiseId, until, status, createdByUserId</li>
+            <li>Связи: Reservation → Premise, Reservation → User</li>
+            <li>Назначение: бронь помещения с инвариантами</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Lease</h3>
+          <ul>
+            <li>Атрибуты: id, tenantId, premiseId, startDate, endDate?, status, rate, vatRate</li>
+            <li>Связи: Lease → Tenant, Lease → Premise, Accrual → Lease</li>
+            <li>Назначение: договор аренды и его жизненный цикл</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Accrual</h3>
+          <ul>
+            <li>Атрибуты: id, leaseId, periodFrom, periodTo, baseAmount, vatAmount, total</li>
+            <li>Связи: Invoice → Accrual</li>
+            <li>Назначение: расчёт начисления за период</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Invoice</h3>
+          <ul>
+            <li>Атрибуты: id, accrualId, number, date, status, total</li>
+            <li>Связи: Payment → Invoice?</li>
+            <li>Назначение: счёт к оплате по начислению</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Payment</h3>
+          <ul>
+            <li>Атрибуты: id, tenantId, invoiceId?, amount, date, method, status</li>
+            <li>Связи: Payment → Tenant, Payment → Invoice?</li>
+            <li>Назначение: учёт оплат и методов оплаты</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Справочники</h3>
+          <ul>
+            <li>PremiseType (тип помещения)</li>
+            <li>VatRate (ставка НДС)</li>
+            <li>PaymentMethod (метод оплаты)</li>
+          </ul>
+        </div>
+      </div>
+      <figure>
+        <figcaption>ER‑диаграмма (наш проект)</figcaption>
+        <img src="diagrams/6.2-info-model-detailed.svg" alt="ER diagram" style="width:100%;max-width:980px;border:1px solid #eee" />
+      </figure>
+    </section>
+
+    <section id="architecture">
+      <h2>Архитектура программного приложения</h2>
+      <p>Архитектура реализована по схеме клиент–сервер с REST API, авторизацией JWT/куки и уровнем доступа на основе ролей (RBAC).</p>
+      <ul>
+        <li><strong>Пользовательский интерфейс</strong>: React + TypeScript + Ant Design + React Query (кэш, фоновые обновления).</li>
+        <li><strong>Транспорт</strong>: HTTP/JSON, base URL: <code>/api/v1</code>, куки для JWT.</li>
+        <li><strong>REST API</strong>: NestJS (модули: reservations, checkout, billing, payments, reports, me, premises, leases).</li>
+        <li><strong>Безопасность</strong>: JWT/куки, Guards + декораторы ролей, CSRF не требуется при cookie httpOnly + CORS.</li>
+        <li><strong>Работа с моделями</strong>: Prisma ORM (PostgreSQL), миграции Prisma Migrate.</li>
+        <li><strong>Документы и обмен</strong>: PDFKit (с кириллицей), ExcelJS/CSV (импорт/экспорт), Multer (загрузки).</li>
+        <li><strong>Аналитика/дашборд</strong>: агрегаты по счетам/платежам/договорам, визуализация Recharts/ECharts.</li>
+      </ul>
+      <figure>
+        <figcaption>Схема архитектуры (упрощённая)</figcaption>
+        <img src="diagrams/6.3-architecture.svg" alt="App architecture" style="width:100%;max-width:980px;border:1px solid #eee" />
+      </figure>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1100">
+  <style>
+    .box{fill:#fff;stroke:#333;stroke-width:1.2}
+    .title{font:700 16px Arial, sans-serif}
+    .attr{font:13px Arial, sans-serif}
+    .rel{stroke:#333;stroke-width:1.2;fill:none}
+    .txt{font:12px Arial, sans-serif;fill:#333}
+    .bg{fill:#fafafa}
+  </style>
+  <rect class="bg" x="0" y="0" width="1800" height="1100"/>
+  <!-- Tenant -->
+  <rect class="box" x="70" y="60" width="250" height="160"/>
+  <text class="title" x="85" y="85">Tenant</text>
+  <text class="attr" x="85" y="110">id: UUID</text>
+  <text class="attr" x="85" y="130">name: TEXT</text>
+  <text class="attr" x="85" y="150">unp: TEXT</text>
+  <text class="attr" x="85" y="170">contacts: JSON</text>
+
+  <!-- User -->
+  <rect class="box" x="70" y="260" width="280" height="200"/>
+  <text class="title" x="85" y="285">User</text>
+  <text class="attr" x="85" y="310">id: UUID</text>
+  <text class="attr" x="85" y="330">email: TEXT</text>
+  <text class="attr" x="85" y="350">passwordHash: TEXT</text>
+  <text class="attr" x="85" y="370">roles: TEXT[]</text>
+  <text class="attr" x="85" y="390">tenantId?: UUID</text>
+
+  <!-- Premise -->
+  <rect class="box" x="420" y="60" width="330" height="210"/>
+  <text class="title" x="435" y="85">Premise</text>
+  <text class="attr" x="435" y="110">id: UUID</text>
+  <text class="attr" x="435" y="130">code: TEXT</text>
+  <text class="attr" x="435" y="150">address: TEXT</text>
+  <text class="attr" x="435" y="170">type: ENUM (PremiseType)</text>
+  <text class="attr" x="435" y="190">area: DECIMAL</text>
+  <text class="attr" x="435" y="210">status: FREE|RESERVED|RENTED</text>
+  <text class="attr" x="435" y="230">availableFrom: DATE</text>
+
+  <!-- Reservation -->
+  <rect class="box" x="420" y="310" width="330" height="190"/>
+  <text class="title" x="435" y="335">Reservation</text>
+  <text class="attr" x="435" y="360">id: UUID</text>
+  <text class="attr" x="435" y="380">premiseId: UUID</text>
+  <text class="attr" x="435" y="400">until: TIMESTAMP</text>
+  <text class="attr" x="435" y="420">status: ACTIVE|CANCELLED|EXPIRED</text>
+  <text class="attr" x="435" y="440">createdByUserId: UUID</text>
+
+  <!-- Lease -->
+  <rect class="box" x="420" y="530" width="350" height="230"/>
+  <text class="title" x="435" y="555">Lease</text>
+  <text class="attr" x="435" y="580">id: UUID</text>
+  <text class="attr" x="435" y="600">tenantId: UUID</text>
+  <text class="attr" x="435" y="620">premiseId: UUID</text>
+  <text class="attr" x="435" y="640">startDate: DATE</text>
+  <text class="attr" x="435" y="660">endDate?: DATE</text>
+  <text class="attr" x="435" y="680">status: DRAFT|ACTIVE|TERMINATING|CLOSED</text>
+  <text class="attr" x="435" y="700">rate: DECIMAL</text>
+  <text class="attr" x="435" y="720">vatRate: ENUM (VatRate)</text>
+
+  <!-- Accrual -->
+  <rect class="box" x="820" y="530" width="280" height="200"/>
+  <text class="title" x="835" y="555">Accrual</text>
+  <text class="attr" x="835" y="580">id: UUID</text>
+  <text class="attr" x="835" y="600">leaseId: UUID</text>
+  <text class="attr" x="835" y="620">periodFrom: DATE</text>
+  <text class="attr" x="835" y="640">periodTo: DATE</text>
+  <text class="attr" x="835" y="660">baseAmount: DECIMAL</text>
+  <text class="attr" x="835" y="680">vatAmount: DECIMAL</text>
+  <text class="attr" x="835" y="700">total: DECIMAL</text>
+
+  <!-- Invoice -->
+  <rect class="box" x="1140" y="520" width="320" height="210"/>
+  <text class="title" x="1155" y="545">Invoice</text>
+  <text class="attr" x="1155" y="570">id: UUID</text>
+  <text class="attr" x="1155" y="590">accrualId: UUID</text>
+  <text class="attr" x="1155" y="610">number: TEXT</text>
+  <text class="attr" x="1155" y="630">date: DATE</text>
+  <text class="attr" x="1155" y="650">status: DRAFT|ISSUED|PAID|PARTIAL|OVERDUE</text>
+  <text class="attr" x="1155" y="670">total: DECIMAL</text>
+
+  <!-- Payment -->
+  <rect class="box" x="1520" y="520" width="260" height="210"/>
+  <text class="title" x="1535" y="545">Payment</text>
+  <text class="attr" x="1535" y="570">id: UUID</text>
+  <text class="attr" x="1535" y="590">tenantId: UUID</text>
+  <text class="attr" x="1535" y="610">invoiceId?: UUID</text>
+  <text class="attr" x="1535" y="630">amount: DECIMAL</text>
+  <text class="attr" x="1535" y="650">date: DATE</text>
+  <text class="attr" x="1535" y="670">method: ENUM (PaymentMethod)</text>
+  <text class="attr" x="1535" y="690">status: ENUM</text>
+
+  <!-- Dictionaries -->
+  <rect class="box" x="820" y="60" width="220" height="120"/>
+  <text class="title" x="835" y="85">PremiseType</text>
+  <text class="attr" x="835" y="110">code</text>
+  <text class="attr" x="835" y="130">title</text>
+
+  <rect class="box" x="1140" y="760" width="200" height="130"/>
+  <text class="title" x="1155" y="785">VatRate</text>
+  <text class="attr" x="1155" y="810">code</text>
+  <text class="attr" x="1155" y="830">percent</text>
+
+  <rect class="box" x="1520" y="760" width="220" height="120"/>
+  <text class="title" x="1535" y="785">PaymentMethod</text>
+  <text class="attr" x="1535" y="810">code</text>
+  <text class="attr" x="1535" y="830">title</text>
+
+  <!-- Relations (with cardinalities) -->
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#333"/></marker>
+  </defs>
+  <path class="rel" d="M210 260 L210 220" marker-end="url(#arrow)"/>
+  <text class="txt" x="220" y="240">User m:1 Tenant</text>
+
+  <path class="rel" d="M585 310 L585 270" marker-end="url(#arrow)"/>
+  <text class="txt" x="595" y="295">Reservation m:1 Premise</text>
+
+  <path class="rel" d="M420 380 L350 360" marker-end="url(#arrow)"/>
+  <text class="txt" x="360" y="350">Reservation m:1 User</text>
+
+  <path class="rel" d="M595 530 L260 220" marker-end="url(#arrow)"/>
+  <text class="txt" x="430" y="420">Lease m:1 Tenant</text>
+
+  <path class="rel" d="M740 590 L820 590" marker-end="url(#arrow)"/>
+  <text class="txt" x="750" y="580">Accrual m:1 Lease</text>
+
+  <path class="rel" d="M1120 600 L1100 600" marker-end="url(#arrow)"/>
+  <text class="txt" x="1040" y="590">Invoice m:1 Accrual</text>
+
+  <path class="rel" d="M1500 600 L1460 600" marker-end="url(#arrow)"/>
+  <text class="txt" x="1400" y="590">Payment m:1 Invoice?</text>
+
+  <path class="rel" d="M1630 520 L200 140" marker-end="url(#arrow)"/>
+  <text class="txt" x="1320" y="420">Payment m:1 Tenant</text>
+
+  <path class="rel" d="M670 160 L820 120" marker-end="url(#arrow)"/>
+  <text class="txt" x="720" y="110">Premise m:1 PremiseType</text>
+
+  <path class="rel" d="M770 720 L1140 780" marker-end="url(#arrow)"/>
+  <text class="txt" x="910" y="760">Lease m:1 VatRate</text>
+
+  <path class="rel" d="M1650 730 L1630 760" marker-end="url(#arrow)"/>
+  <text class="txt" x="1580" y="745">Payment m:1 PaymentMethod</text>
+</svg>

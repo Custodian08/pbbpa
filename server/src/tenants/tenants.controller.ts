@@ -20,25 +20,25 @@ export class TenantsController {
   }
 
   @Post()
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   create(@Body() dto: CreateTenantDto) {
     return this.service.create(dto);
   }
 
   @Patch(':id')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   update(@Param('id') id: string, @Body() dto: Partial<CreateTenantDto>) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
 
   @Post('import')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   import(@Body() dtos: CreateTenantDto[]) {
     return this.service.import(dtos);
   }

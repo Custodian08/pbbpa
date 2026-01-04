@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RunBillingDto } from './dto/run-billing.dto';
 import { InvoiceStatus, RateType } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function parsePeriod(period: string) {
   const [y, m] = period.split('-').map((v) => parseInt(v, 10));
@@ -12,7 +13,7 @@ function parsePeriod(period: string) {
 
 @Injectable()
 export class BillingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly notif: NotificationsService) {}
 
   private async getVatRateForDate(date: Date): Promise<number> {
     const s = await this.prisma.vatSetting.findFirst({
@@ -34,7 +35,7 @@ export class BillingService {
           { periodTo: { gte: start } },
         ],
       },
-      include: { premise: true, indexations: true },
+      include: { premise: true, indexations: true, tenant: true },
     });
 
     const results: Array<{ leaseId: string; accrualId?: string; invoiceId?: string; reason?: string }> = [];
@@ -88,6 +89,12 @@ export class BillingService {
           status: InvoiceStatus.DRAFT,
         },
       });
+
+      // Try to notify tenant via email if configured
+      const to = lease.tenant?.email;
+      if (to) {
+        void this.notif.invoiceCreated(to, { number: invoice.number, total, date: invoice.date });
+      }
 
       results.push({ leaseId: lease.id, accrualId: accrual.id, invoiceId: invoice.id });
     }

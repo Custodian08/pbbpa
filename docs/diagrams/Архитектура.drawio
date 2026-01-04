@@ -1,0 +1,51 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.5 Chrome/138.0.7204.251 Electron/37.6.1 Safari/537.36" version="28.2.5">
+  <diagram name="Страница — 1" id="3JNnr6HYiL0HROz53DrH">
+    <mxGraphModel dx="1426" dy="849" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-2" value="" style="whiteSpace=wrap;html=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="190" width="1000" height="660" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="pvH3qkz71Do5WjIwXpZa-1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="532" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-1" value="Пользовательский интерфейс&lt;br&gt;React + CSS + TypeScript" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="414" y="30" width="236" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-4" value="HTTP JSON" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="740" y="150" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="pvH3qkz71Do5WjIwXpZa-5" target="pvH3qkz71Do5WjIwXpZa-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-5" value="REST API&lt;div&gt;(NestJS)&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="414" y="230" width="236" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="pvH3qkz71Do5WjIwXpZa-6" target="pvH3qkz71Do5WjIwXpZa-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-6" value="PRISMA ORM" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="414" y="390" width="236" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-8" value="БД&lt;div&gt;PostgreSQL&lt;/div&gt;" style="shape=datastore;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="437" y="590" width="190" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="pvH3qkz71Do5WjIwXpZa-9" target="pvH3qkz71Do5WjIwXpZa-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-9" value="JWT в httpOnly‑cookie + RBAC (Roles) + Guards/Interceptors (NestJS)" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="230" width="236" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="pvH3qkz71Do5WjIwXpZa-10" target="pvH3qkz71Do5WjIwXpZa-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pvH3qkz71Do5WjIwXpZa-10" value="Формирование отчётов и аналитики: PDFKit (с кириллицей), ExcelJS/CSV, агрегаты для дашборда" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="110" y="230" width="236" height="130" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

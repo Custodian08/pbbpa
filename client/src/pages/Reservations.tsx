@@ -14,7 +14,7 @@ import { useAuth } from '../modules/auth/AuthContext';
   const { user } = useAuth();
   const isUser = (user?.roles || []).includes('USER');
 
-  const { data, isLoading } = useQuery<Reservation[]>({ queryKey: ['reservations'], queryFn: async () => (await api.get('/reservations')).data });
+  const { data, isLoading } = useQuery<any[]>({ queryKey: ['reservations'], queryFn: async () => (await api.get('/reservations')).data });
   const { data: premises } = useQuery<Premise[]>({
     queryKey: ['premises', isUser ? 'available' : 'all'],
     queryFn: async () => (await api.get(isUser ? '/premises/available' : '/premises')).data,
@@ -33,12 +33,18 @@ import { useAuth } from '../modules/auth/AuthContext';
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => (await api.post(`/reservations/${id}/cancel`)).data,
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['reservations'] }); message.success('Резервация отменена'); }
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['reservations'] });
+      await qc.invalidateQueries({ queryKey: ['catalog'] });
+      await qc.invalidateQueries({ queryKey: ['me','reservations'] });
+      message.success('Резервация отменена');
+    }
   });
 
   const expireNow = async () => {
     await api.post('/reservations/expire-now');
     await qc.invalidateQueries({ queryKey: ['reservations'] });
+    await qc.invalidateQueries({ queryKey: ['catalog'] });
     message.success('Просроченные резервации помечены');
   };
 
@@ -61,8 +67,9 @@ import { useAuth } from '../modules/auth/AuthContext';
         dataSource={data || []}
         pagination={{ pageSize: 10 }}
         columns={[
-          { title: 'Помещение', dataIndex: 'premiseId', render: (v: string)=> {
-            const p = (premises||[]).find(x=> x.id===v); return p ? (p.code ? `${p.code} — ${p.address}` : p.address) : v;
+          { title: 'Помещение', dataIndex: 'premiseId', render: (_: any, r: any)=> {
+            const p = r.premise || (premises||[]).find(x=> x.id===r.premiseId);
+            return p ? (p.code ? `${p.code} — ${p.address}` : p.address) : r.premiseId;
           } },
           { title: 'До', dataIndex: 'until', render: (v)=> String(v).slice(0,10) },
           { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='ACTIVE'?'blue':v==='CANCELLED'?'orange':'default'}>{v}</Tag> },

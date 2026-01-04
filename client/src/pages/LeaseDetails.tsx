@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
-import { Card, Descriptions, Tabs, Table, Tag, Space, Button, App as AntApp, Modal, Form, DatePicker, InputNumber } from 'antd';
+import { Card, Descriptions, Tabs, Table, Tag, Space, Button, App as AntApp, Modal, Form, DatePicker, InputNumber, Upload, Popconfirm } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../modules/auth/AuthContext';
 import { toPng } from 'html-to-image';
@@ -21,6 +21,9 @@ import { toPng } from 'html-to-image';
   status: 'DRAFT' | 'ACTIVE' | 'TERMINATING' | 'CLOSED';
   premise?: { code?: string | null; address: string; area: number };
   tenant?: { name: string };
+  signedAt?: string | null;
+  signedBy?: string | null;
+  signedFileName?: string | null;
 };
 
  type Accrual = { id: string; period: string; baseAmount: number; vatAmount: number; total: number };
@@ -62,6 +65,44 @@ import { toPng } from 'html-to-image';
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const downloadSignedPdf = async () => {
+    try {
+      const res = await api.get(`/leases/${id}/sign/download`, { responseType: 'blob' });
+      download(res.data, `contract-signed-${lease?.number || (lease?.id || '').slice(0,8)}.pdf`);
+    } catch {
+      message.error('Нет подписанного файла');
+    }
+  };
+
+  const deleteSignedPdf = async () => {
+    try {
+      await api.delete(`/leases/${id}/sign`);
+      await refetch();
+      message.success('Подписанный файл удален');
+    } catch {
+      message.error('Не удалось удалить файл');
+    }
+  };
+
+  const uploadSignedProps = {
+    name: 'file',
+    showUploadList: false,
+    customRequest: async (opts: any) => {
+      try {
+        const form = new FormData();
+        form.append('file', opts.file as File);
+        form.append('by', 'user');
+        await api.post(`/leases/${id}/sign/upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await refetch();
+        message.success('Подписанный договор загружен');
+        opts.onSuccess?.({}, opts.file);
+      } catch (e) {
+        message.error('Загрузка не удалась');
+        opts.onError?.(e as any);
+      }
+    }
+  } as any;
 
   const mutateAndRefresh = async (fn: ()=> Promise<any>, okMsg: string) => {
     try { await fn(); await refetch(); message.success(okMsg); } catch (e:any) { message.error('Операция не выполнена'); }
@@ -124,6 +165,19 @@ import { toPng } from 'html-to-image';
         <Button onClick={downloadContractPdf}>Договор (PDF)</Button>
         {isAdmin && <Button onClick={downloadContractDocx}>Договор (DOCX)</Button>}
         {isAdmin && <Button onClick={exportContractPng}>Договор (PNG)</Button>}
+        {(isAdmin || isOperator) && (
+          <Upload {...uploadSignedProps}><Button>Загрузить подписанный</Button></Upload>
+        )}
+        {lease?.signedFileName && (
+          <>
+            <Button onClick={downloadSignedPdf}>Подписанный (PDF)</Button>
+            {isAdmin && (
+              <Popconfirm title="Удалить подписанный файл?" okText="Да" cancelText="Нет" onConfirm={deleteSignedPdf}>
+                <Button danger>Удалить подписанный</Button>
+              </Popconfirm>
+            )}
+          </>
+        )}
         {(isAdmin || isOperator) && lease?.status==='DRAFT' && <Button type="primary" onClick={activateLease}>Активировать</Button>}
         {(isAdmin) && lease?.status==='ACTIVE' && <Button danger onClick={terminateLease}>На расторжении</Button>}
         {(isAdmin) && (lease?.status==='ACTIVE' || lease?.status==='TERMINATING') && <Button onClick={closeLease}>Закрыть</Button>}

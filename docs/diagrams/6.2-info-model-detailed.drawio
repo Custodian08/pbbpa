@@ -1,0 +1,59 @@
+<mxfile host="app.diagrams.net" modified="2025-12-10">
+  <diagram name="InfoModelDetailed">
+    <mxGraphModel dx="1400" dy="1000" grid="1" page="1" pageWidth="2000" pageHeight="1400">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Entities -->
+        <mxCell id="tenant" value="Tenant\n— id: UUID\n— name: TEXT\n— unp: TEXT\n— contacts: JSON" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="60" width="220" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="user" value="User\n— id: UUID\n— email: TEXT\n— passwordHash: TEXT\n— roles: TEXT[]\n— tenantId?: UUID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="260" width="240" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="premise" value="Premise\n— id: UUID\n— code: TEXT\n— address: TEXT\n— type: ENUM\n— area: DECIMAL\n— status: FREE|RESERVED|RENTED\n— availableFrom: DATE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="370" y="60" width="300" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="reservation" value="Reservation\n— id: UUID\n— premiseId: UUID\n— until: TIMESTAMP\n— status: ACTIVE|CANCELLED|EXPIRED\n— createdByUserId: UUID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="370" y="270" width="300" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="lease" value="Lease\n— id: UUID\n— tenantId: UUID\n— premiseId: UUID\n— startDate: DATE\n— endDate?: DATE\n— status: DRAFT|ACTIVE|TERMINATING|CLOSED\n— rate: DECIMAL\n— vatRate: ENUM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="370" y="480" width="320" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="accrual" value="Accrual\n— id: UUID\n— leaseId: UUID\n— periodFrom: DATE\n— periodTo: DATE\n— baseAmount: DECIMAL\n— vatAmount: DECIMAL\n— total: DECIMAL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="740" y="480" width="260" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="invoice" value="Invoice\n— id: UUID\n— accrualId: UUID\n— number: TEXT\n— date: DATE\n— status: DRAFT|ISSUED|PAID|PARTIAL|OVERDUE\n— total: DECIMAL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="470" width="300" height="190" as="geometry"/>
+        </mxCell>
+        <mxCell id="payment" value="Payment\n— id: UUID\n— tenantId: UUID\n— invoiceId?: UUID\n— amount: DECIMAL\n— date: DATE\n— method: ENUM\n— status: ENUM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="470" width="260" height="190" as="geometry"/>
+        </mxCell>
+        <mxCell id="vat" value="VatRate\n— id\n— code\n— percent\n— validFrom/To" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f7f7f7;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="690" width="180" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="ptype" value="PremiseType\n— code\n— title" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f7f7f7;" vertex="1" parent="1">
+          <mxGeometry x="700" y="60" width="180" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="pmethod" value="PaymentMethod\n— code\n— title" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f7f7f7;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="690" width="200" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Relations -->
+        <mxCell id="r_user_tenant" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="user" target="tenant"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_res_prem" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="reservation" target="premise"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_res_user" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="reservation" target="user"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_lease_tenant" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="lease" target="tenant"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_lease_prem" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="lease" target="premise"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_accrual_lease" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="accrual" target="lease"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_invoice_accrual" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="invoice" target="accrual"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_payment_invoice" value="m:1?" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="payment" target="invoice"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_payment_tenant" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="payment" target="tenant"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_prem_ptype" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="premise" target="ptype"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_lease_vat" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="lease" target="vat"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_payment_method" value="m:1" style="endArrow=block;html=1;strokeColor=#333;" edge="1" parent="1" source="payment" target="pmethod"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

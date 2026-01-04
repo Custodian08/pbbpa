@@ -22,10 +22,13 @@ import { DocumentsModule } from './documents/documents.module';
 import { InitialSeedService } from './initial-seed.service';
 import { SettingsModule } from './settings/settings.module';
 import { PenaltiesModule } from './penalties/penalties.module';
+import { LeadsModule } from './leads/leads.module';
+import { MeController } from './me/me.controller';
+import { CheckoutModule } from './checkout/checkout.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), UsersModule, AuthModule, PremisesModule, TenantsModule, LeasesModule, ReservationsModule, BillingModule, PaymentsModule, AdminModule, ReportsModule, AnalyticsModule, DocumentsModule, SettingsModule, PenaltiesModule],
-  controllers: [AppController],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), UsersModule, AuthModule, PremisesModule, TenantsModule, LeasesModule, ReservationsModule, BillingModule, PaymentsModule, AdminModule, ReportsModule, AnalyticsModule, DocumentsModule, SettingsModule, PenaltiesModule, LeadsModule, CheckoutModule],
+  controllers: [AppController, MeController],
   providers: [
     AppService,
     PrismaService,

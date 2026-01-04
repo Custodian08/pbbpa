@@ -31,11 +31,12 @@ export class ReportsController {
   }
 
   @Get('invoice/:id.pdf')
-  async invoicePdf(@Param('id') id: string, @Res({ passthrough: true }) res: any) {
+  async invoicePdf(@Param('id') id: string, @Res() res: any) {
     const buf = await this.svc.invoicePdf(id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="invoice-${id}.pdf"`);
-    return buf;
+    res.setHeader('Content-Length', Buffer.byteLength(buf));
+    res.end(buf);
   }
 
   @Get('payments.xlsx')

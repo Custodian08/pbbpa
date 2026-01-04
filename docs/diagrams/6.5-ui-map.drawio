@@ -1,0 +1,30 @@
+<mxfile host="app.diagrams.net" modified="2025-12-09">
+  <diagram name="UI Map">
+    <mxGraphModel dx="1200" dy="800" grid="1" page="1" pageWidth="1600" pageHeight="1200">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="login" value="Login" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6e6;" vertex="1" parent="1"><mxGeometry x="80" y="80" width="120" height="50" as="geometry"/></mxCell>
+        <mxCell id="catalog" value="Catalog" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="260" y="80" width="120" height="50" as="geometry"/></mxCell>
+        <mxCell id="myres" value="My Reservations" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="260" y="160" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="myinv" value="My Invoices" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="260" y="240" width="140" height="50" as="geometry"/></mxCell>
+        <mxCell id="mypay" value="My Payments" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="260" y="320" width="140" height="50" as="geometry"/></mxCell>
+        <mxCell id="dash" value="Dashboard (staff)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6ffe6;" vertex="1" parent="1"><mxGeometry x="560" y="60" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="prem" value="Premises (staff)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="560" y="120" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="leases" value="Leases (staff)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="560" y="180" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="invoices" value="Invoices (staff)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="560" y="240" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="payments" value="Payments (staff)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="560" y="300" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="reservations" value="Reservations (staff)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="560" y="360" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="login" target="catalog" style="endArrow=block;"/>
+        <mxCell id="e2" edge="1" parent="1" source="catalog" target="myres" style="endArrow=block;"/>
+        <mxCell id="e3" edge="1" parent="1" source="catalog" target="myinv" style="endArrow=block;"/>
+        <mxCell id="e4" edge="1" parent="1" source="catalog" target="mypay" style="endArrow=block;"/>
+        <mxCell id="e5" edge="1" parent="1" source="dash" target="prem" style="endArrow=block;"/>
+        <mxCell id="e6" edge="1" parent="1" source="prem" target="leases" style="endArrow=block;"/>
+        <mxCell id="e7" edge="1" parent="1" source="leases" target="invoices" style="endArrow=block;"/>
+        <mxCell id="e8" edge="1" parent="1" source="invoices" target="payments" style="endArrow=block;"/>
+        <mxCell id="e9" edge="1" parent="1" source="payments" target="reservations" style="endArrow=block;"/>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

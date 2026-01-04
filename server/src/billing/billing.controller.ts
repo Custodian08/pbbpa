@@ -10,7 +10,7 @@ export class BillingController {
   constructor(private readonly service: BillingService) {}
 
   @Post('run')
-  @Roles('OPERATOR', 'ADMIN')
+  @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
   run(@Body() dto: RunBillingDto) {
     return this.service.run(dto);
   }

@@ -39,5 +39,6 @@ export class InitialSeedService implements OnModuleInit {
     await this.prisma.role.upsert({ where: { name: 'ADMIN' }, update: {}, create: { name: 'ADMIN' } });
     await this.prisma.role.upsert({ where: { name: 'OPERATOR' }, update: {}, create: { name: 'OPERATOR' } });
     await this.prisma.role.upsert({ where: { name: 'ANALYST' }, update: {}, create: { name: 'ANALYST' } });
+    await this.prisma.role.upsert({ where: { name: 'ACCOUNTANT' }, update: {}, create: { name: 'ACCOUNTANT' } });
   }
 }

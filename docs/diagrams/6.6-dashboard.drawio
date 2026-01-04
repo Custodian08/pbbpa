@@ -1,0 +1,15 @@
+<mxfile host="app.diagrams.net" modified="2025-12-09">
+  <diagram name="Dashboard">
+    <mxGraphModel dx="1200" dy="800" grid="1" page="1" pageWidth="1600" pageHeight="1200">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="kpi" value="KPI: Occupancy, AR, DSO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbe6;" vertex="1" parent="1"><mxGeometry x="60" y="60" width="320" height="80" as="geometry"/></mxCell>
+        <mxCell id="line" value="Revenue by Month (Line)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="60" y="160" width="480" height="200" as="geometry"/></mxCell>
+        <mxCell id="stack" value="Invoices by Status (Stacked Bar)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="560" y="160" width="480" height="200" as="geometry"/></mxCell>
+        <mxCell id="donut" value="Area by Premise Type (Donut)" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="60" y="380" width="220" height="220" as="geometry"/></mxCell>
+        <mxCell id="heat" value="Payments Heatmap" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="320" y="380" width="720" height="220" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

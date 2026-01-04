@@ -1,9 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { LeasesService } from './leases.service';
 import { CreateLeaseDto } from './dto/create-lease.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CreateIndexationDto } from './dto/create-indexation.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import * as fs from 'fs';
+import * as path from 'path';
+import type { Response } from 'express';
 
 @ApiTags('leases')
 @Controller('leases')
@@ -21,13 +26,13 @@ export class LeasesController {
   }
 
   @Post()
-  @Roles('ADMIN', 'OPERATOR')
+  @Roles('ADMIN', 'OPERATOR', 'ACCOUNTANT')
   create(@Body() dto: CreateLeaseDto) {
     return this.service.create(dto);
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'OPERATOR')
+  @Roles('ADMIN', 'OPERATOR', 'ACCOUNTANT')
   update(@Param('id') id: string, @Body() dto: Partial<CreateLeaseDto>) {
     return this.service.update(id, dto);
   }
@@ -77,7 +82,7 @@ export class LeasesController {
   }
 
   @Post(':id/indexations')
-  @Roles('ADMIN', 'OPERATOR')
+  @Roles('ADMIN', 'OPERATOR', 'ACCOUNTANT')
   addIndexation(@Param('id') id: string, @Body() dto: CreateIndexationDto) {
     return this.service.addIndexation(id, dto);
   }
@@ -86,5 +91,47 @@ export class LeasesController {
   @Roles('ADMIN')
   removeIndexation(@Param('id') id: string, @Param('ixId') ixId: string) {
     return this.service.removeIndexation(id, ixId);
+  }
+
+  // --- Signed contract upload/download ---
+  @Post(':id/sign/upload')
+  @Roles('ADMIN', 'OPERATOR', 'ACCOUNTANT')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: (req: any, _file: any, cb: (err: Error | null, dest: string) => void) => {
+        const dest = path.join(process.cwd(), 'uploads', 'leases', req.params.id);
+        fs.mkdirSync(dest, { recursive: true });
+        cb(null, dest);
+      },
+      filename: (_req: any, file: any, cb: (err: Error | null, name: string) => void) => {
+        const stamp = Date.now();
+        const safe = String(file.originalname || 'signed.pdf').replace(/[^a-zA-Z0-9_.-]+/g, '_');
+        cb(null, `${stamp}__${safe}`);
+      },
+    })
+  }))
+  async uploadSigned(
+    @Param('id') id: string,
+    @UploadedFile() file: any,
+    @Body() body: { by?: string },
+  ) {
+    return this.service.markSigned(id, { by: body?.by, fileName: file.filename });
+  }
+
+  @Get(':id/sign/download')
+  async downloadSigned(@Param('id') id: string, @Res() res: Response) {
+    const lease: any = await this.service.findOne(id);
+    if (!lease.signedFileName) return res.status(404).send('No signed file');
+    const p = path.join(process.cwd(), 'uploads', 'leases', id, lease.signedFileName);
+    if (!fs.existsSync(p)) return res.status(404).send('File not found');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${lease.signedFileName}"`);
+    fs.createReadStream(p).pipe(res);
+  }
+
+  @Delete(':id/sign')
+  @Roles('ADMIN')
+  async clearSigned(@Param('id') id: string) {
+    return this.service.clearSigned(id);
   }
 }

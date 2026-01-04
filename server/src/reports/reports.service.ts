@@ -1,15 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import * as fs from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 
-function bufferFromPdf(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
+function collectPdfBuffer(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
+  // Attach listeners BEFORE any writing to the document happens
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     doc.on('data', (c: any) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
-    doc.end();
   });
 }
 
@@ -172,6 +173,16 @@ export class ReportsService {
     if (!inv) throw new NotFoundException('Invoice not found');
 
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    const bufPromise = collectPdfBuffer(doc);
+    // Try to use a font with кириллица support
+    const winFont = 'C:\\Windows\\Fonts\\arial.ttf';
+    const linuxFont = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+    const fontPath = process.platform === 'win32' ? winFont : linuxFont;
+    try {
+      if (fs.existsSync(fontPath)) {
+        doc.font(fontPath);
+      }
+    } catch {}
     doc.fontSize(16).text('Счет на оплату', { align: 'center' });
     doc.moveDown();
     doc.fontSize(10);
@@ -192,7 +203,8 @@ export class ReportsService {
     doc.moveDown(2);
     doc.text('Подпись: ______________________');
 
-    const buf = await bufferFromPdf(doc);
+    doc.end();
+    const buf = await bufPromise;
     return buf;
   }
 }
