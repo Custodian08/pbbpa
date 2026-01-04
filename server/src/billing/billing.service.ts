@@ -38,65 +38,120 @@ export class BillingService {
       include: { premise: true, indexations: true, tenant: true },
     });
 
-    const results: Array<{ leaseId: string; accrualId?: string; invoiceId?: string; reason?: string }> = [];
+    const results: Array<{
+      leaseId: string;
+      leaseNumber?: string | null;
+      tenantName?: string;
+      premiseAddress?: string;
+      accrualId?: string;
+      invoiceId?: string;
+      invoiceNumber?: string;
+      reason?: string;
+      messageRu?: string;
+      total?: number;
+    }> = [];
 
     for (const lease of activeLeases) {
-      // Ensure accrual not exists for this month
-      const existing = await this.prisma.accrual.findUnique({ where: { leaseId_period: { leaseId: lease.id, period: start } } }).catch(() => null);
-      if (existing) {
-        results.push({ leaseId: lease.id, accrualId: existing.id, reason: 'already exists' });
-        continue;
-      }
+      try {
+        // Ensure accrual not exists for this month
+        const existing = await this.prisma.accrual.findUnique({ where: { leaseId_period: { leaseId: lease.id, period: start } } }).catch(() => null);
+        if (existing) {
+          results.push({
+            leaseId: lease.id,
+            leaseNumber: lease.number,
+            tenantName: lease.tenant?.name,
+            premiseAddress: lease.premise?.address,
+            accrualId: existing.id,
+            reason: 'already exists',
+            messageRu: 'Начисление за этот месяц уже существует',
+          });
+          continue;
+        }
 
-      const area = Number(lease.premise.area);
-      const baseRateRaw = lease.premise.baseRate ? Number(lease.premise.baseRate) : 0;
-      // Apply latest indexation with effectiveFrom <= period start
-      const applicable = (lease.indexations || [])
-        .filter((ix) => new Date(ix.effectiveFrom) <= start)
-        .sort((a, b) => new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime())[0];
-      const factor = applicable ? Number(applicable.factor) : 1;
-      const baseRate = +(baseRateRaw * factor).toFixed(4);
+        const area = Number(lease.premise.area);
+        const baseRateRaw = lease.premise.baseRate ? Number(lease.premise.baseRate) : 0;
+        // Apply latest indexation with effectiveFrom <= period start
+        const applicable = (lease.indexations || [])
+          .filter((ix) => new Date(ix.effectiveFrom) <= start)
+          .sort((a, b) => new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime())[0];
+        const factor = applicable ? Number(applicable.factor) : 1;
+        const baseRate = +(baseRateRaw * factor).toFixed(4);
 
-      if (!baseRate || (lease.base === 'M2' && !area)) {
-        results.push({ leaseId: lease.id, reason: 'missing base rate or area' });
-        continue;
-      }
+        if (!baseRate || (lease.base === 'M2' as RateType) && !area) {
+          const missingMsg = !baseRate
+            ? 'Не заполнена базовая ставка помещения'
+            : 'Не заполнена площадь помещения для тарифа м²';
+          results.push({
+            leaseId: lease.id,
+            leaseNumber: lease.number,
+            tenantName: lease.tenant?.name,
+            premiseAddress: lease.premise?.address,
+            reason: 'missing base rate or area',
+            messageRu: `Пропуск: ${missingMsg}`,
+          });
+          continue;
+        }
 
-      const baseAmount = lease.base === ('M2' as RateType) ? area * baseRate : baseRate;
-      const vatRate = lease.vatRate != null ? Number(lease.vatRate) : await this.getVatRateForDate(start);
-      const vatAmount = +(baseAmount * (vatRate / 100)).toFixed(2);
-      const total = +(baseAmount + vatAmount).toFixed(2);
+        const baseAmountRaw = lease.base === ('M2' as RateType) ? area * baseRate : baseRate;
+        const baseAmount = +baseAmountRaw.toFixed(2);
+        const vatRate = lease.vatRate != null ? Number(lease.vatRate) : await this.getVatRateForDate(start);
+        const vatAmount = +(baseAmount * (vatRate / 100)).toFixed(2);
+        const total = +(baseAmount + vatAmount).toFixed(2);
 
-      const accrual = await this.prisma.accrual.create({
-        data: {
+        const accrual = await this.prisma.accrual.create({
+          data: {
+            leaseId: lease.id,
+            period: start,
+            baseAmount,
+            vatAmount,
+            total,
+          },
+        });
+
+        // Create invoice DRAFT
+        const monthTag = `${y}${String(m).padStart(2, '0')}`;
+        const countThisMonth = await this.prisma.invoice.count({ where: { date: { gte: start, lte: end } } });
+        const number = `INV-${monthTag}-${String(countThisMonth + 1).padStart(4, '0')}`;
+        const invoice = await this.prisma.invoice.create({
+          data: {
+            accrualId: accrual.id,
+            number,
+            date: new Date(),
+            status: InvoiceStatus.DRAFT,
+          },
+        });
+
+        // Try to notify tenant via email if configured
+        const to = lease.tenant?.email;
+        if (to) {
+          void this.notif.invoiceCreated(to, { number: invoice.number, total, date: invoice.date });
+        }
+
+        results.push({
           leaseId: lease.id,
-          period: start,
-          baseAmount,
-          vatAmount,
-          total,
-        },
-      });
-
-      // Create invoice DRAFT
-      const monthTag = `${y}${String(m).padStart(2, '0')}`;
-      const countThisMonth = await this.prisma.invoice.count({ where: { date: { gte: start, lte: end } } });
-      const number = `INV-${monthTag}-${String(countThisMonth + 1).padStart(4, '0')}`;
-      const invoice = await this.prisma.invoice.create({
-        data: {
+          leaseNumber: lease.number,
+          tenantName: lease.tenant?.name,
+          premiseAddress: lease.premise?.address,
           accrualId: accrual.id,
-          number,
-          date: new Date(),
-          status: InvoiceStatus.DRAFT,
-        },
-      });
-
-      // Try to notify tenant via email if configured
-      const to = lease.tenant?.email;
-      if (to) {
-        void this.notif.invoiceCreated(to, { number: invoice.number, total, date: invoice.date });
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.number,
+          total,
+          messageRu: 'Счет создан',
+        });
+      } catch (e: any) {
+        const msg = e?.code === 'P2002'
+          ? 'Нарушение уникальности (начисление/счет уже существует)'
+          : (e?.message || 'Неизвестная ошибка');
+        results.push({
+          leaseId: lease.id,
+          leaseNumber: lease.number,
+          tenantName: lease.tenant?.name,
+          premiseAddress: lease.premise?.address,
+          reason: e?.code || 'error',
+          messageRu: `Ошибка: ${msg}`,
+        });
+        continue;
       }
-
-      results.push({ leaseId: lease.id, accrualId: accrual.id, invoiceId: invoice.id });
     }
 
     return { period: dto.period, processed: activeLeases.length, results };

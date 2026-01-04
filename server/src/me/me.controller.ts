@@ -35,14 +35,52 @@ export class MeController {
   async myInvoices(@Req() req: any) {
     const tenantId = await this.getTenantId(req);
     if (!tenantId) return [];
-    return this.prisma.invoice.findMany({ where: { accrual: { lease: { tenantId } } }, include: { accrual: true }, orderBy: { date: 'desc' } });
+    const uid = req?.user?.userId as string | undefined;
+    if (!uid) return [];
+    return this.prisma.invoice.findMany({
+      where: {
+        accrual: {
+          lease: {
+            tenantId,
+            OR: [
+              { createdByUserId: uid },
+              { reservation: { is: { createdByUserId: uid } } },
+            ],
+          },
+        },
+      },
+      include: { accrual: true },
+      orderBy: { date: 'desc' },
+    });
   }
 
   @Get('payments')
   async myPayments(@Req() req: any) {
     const tenantId = await this.getTenantId(req);
     if (!tenantId) return [];
-    return this.prisma.payment.findMany({ where: { tenantId }, orderBy: { date: 'desc' } });
+    const uid = req?.user?.userId as string | undefined;
+    if (!uid) return [];
+    // Показываем только платежи, которые привязаны к счетам по договорам,
+    // созданным самим пользователем или по его бронированиям.
+    return this.prisma.payment.findMany({
+      where: {
+        tenantId,
+        linkedInvoice: {
+          is: {
+            accrual: {
+              lease: {
+                tenantId,
+                OR: [
+                  { createdByUserId: uid },
+                  { reservation: { is: { createdByUserId: uid } } },
+                ],
+              },
+            },
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
   }
 
   @Get('reservations')

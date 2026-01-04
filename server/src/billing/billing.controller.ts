@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, BadRequestException } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { RunBillingDto } from './dto/run-billing.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -11,8 +11,16 @@ export class BillingController {
 
   @Post('run')
   @Roles('OPERATOR', 'ADMIN', 'ACCOUNTANT')
-  run(@Body() dto: RunBillingDto) {
-    return this.service.run(dto);
+  async run(@Body() dto: RunBillingDto) {
+    try {
+      if (!dto?.period || !/^\d{4}-\d{2}$/.test(dto.period)) {
+        throw new BadRequestException('Некорректный период. Ожидался формат YYYY-MM.');
+      }
+      return await this.service.run(dto);
+    } catch (e: any) {
+      const msg = e?.message || 'Внутренняя ошибка биллинга';
+      throw new BadRequestException(`Ошибка биллинга: ${msg}`);
+    }
   }
 
   @Get('invoices')

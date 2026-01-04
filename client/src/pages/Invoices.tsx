@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Card, DatePicker, Flex, Space, Table, Tag, Input, Select, App as AntApp } from 'antd';
+import { Button, Card, DatePicker, Flex, Space, Table, Tag, Input, Select, App as AntApp, Modal } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import dayjs, { Dayjs } from 'dayjs';
@@ -23,6 +23,8 @@ export const InvoicesPage: React.FC = () => {
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(10);
   const tableRef = React.useRef<HTMLDivElement>(null);
+  const [resultOpen, setResultOpen] = React.useState(false);
+  const [result, setResult] = React.useState<any | null>(null);
 
   const { data, isLoading, refetch } = useQuery<{ items: Invoice[]; total: number; page: number; pageSize: number}>({
     queryKey: ['invoices', periodStr, status, q, page, pageSize],
@@ -37,11 +39,18 @@ export const InvoicesPage: React.FC = () => {
 
   const runBilling = useMutation({
     mutationFn: async () => (await api.post('/billing/run', { period: periodStr! })).data,
-    onSuccess: async () => {
+    onSuccess: async (res) => {
       await qc.invalidateQueries({ queryKey: ['invoices'] });
       await refetch();
+      setResult(res);
+      setResultOpen(true);
       message.success('Биллинг выполнен');
     },
+    onError: (err: any) => {
+      const data = err?.response?.data;
+      const msg = (typeof data === 'string' && data) || data?.message || err?.message || 'Не удалось запустить биллинг';
+      message.error(`Ошибка биллинга: ${msg}`);
+    }
   });
 
   const exportPng = async () => {
@@ -68,6 +77,7 @@ export const InvoicesPage: React.FC = () => {
   };
 
   return (
+    <>
     <Card title="Счета">
       <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
         <Space>
@@ -113,5 +123,28 @@ export const InvoicesPage: React.FC = () => {
         />
       </div>
     </Card>
+
+    <Modal open={resultOpen} title="Результаты биллинга" onCancel={() => setResultOpen(false)} footer={null} width={900}>
+      <div style={{ marginBottom: 12 }}>
+        <div>Период: {result?.period || periodStr}</div>
+        <div>Обработано договоров: {result?.processed ?? 0}</div>
+        <div>Создано счетов: {(result?.results||[]).filter((r: any)=> r.invoiceId).length}</div>
+        <div>Пропущено: {(result?.results||[]).filter((r: any)=> !r.invoiceId).length}</div>
+      </div>
+      <Table
+        rowKey={(r: any) => r.accrualId || r.leaseId}
+        dataSource={result?.results || []}
+        pagination={{ pageSize: 8 }}
+        columns={[
+          { title: 'Договор', dataIndex: 'leaseNumber', render: (v: any, r: any)=> v || r.leaseId },
+          { title: 'Арендатор', dataIndex: 'tenantName' },
+          { title: 'Помещение', dataIndex: 'premiseAddress' },
+          { title: 'Счет', dataIndex: 'invoiceNumber' },
+          { title: 'Итого, BYN', dataIndex: 'total' },
+          { title: 'Результат', dataIndex: 'messageRu', render: (v: any)=> v || '—' },
+        ]}
+      />
+    </Modal>
+    </>
   );
 };
