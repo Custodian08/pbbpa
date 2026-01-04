@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import dayjs, { Dayjs } from 'dayjs';
 import { useAuth } from '../modules/auth/AuthContext';
+import { labelPremiseType, labelPremiseStatus, labelRateType } from '../i18n/labels';
 
  type Premise = {
   id: string;
@@ -43,31 +44,14 @@ export const CatalogPage: React.FC = () => {
     },
   });
 
-  const [processing, setProcessing] = React.useState<string | null>(null);
-  const rentAndPay = async (p: Premise) => {
-    try {
-      setProcessing(p.id);
-      // 1) Rent: create lease + invoice
-      const rentRes = await api.post('/checkout/rent', { premiseId: p.id });
-      const invoice = rentRes.data?.invoice;
-      if (!invoice?.id) throw new Error('Не удалось создать счет');
-      // 2) Pay: pay this invoice fully
-      await api.post('/checkout/pay', { invoiceId: invoice.id });
-      message.success('Аренда оформлена и счет оплачен');
-      await qc.invalidateQueries({ queryKey: ['catalog'] });
-    } catch (e:any) {
-      message.error(e?.response?.data?.message || 'Не удалось оформить аренду');
-    } finally {
-      setProcessing(null);
-    }
-  };
+  // Кнопку «Арендовать и оплатить» убрали по требованию
 
   const reserve = (p: Premise) => { setCurrentPremise(p); setOpen(true); };
 
   const statusTag = (s?: string) => {
     if (!s) return null;
     const color = s==='FREE' ? 'green' : s==='RESERVED' ? 'orange' : 'red';
-    return <Tag color={color}>{s}</Tag>;
+    return <Tag color={color}>{labelPremiseStatus(s)}</Tag>;
   };
 
   return (
@@ -83,14 +67,13 @@ export const CatalogPage: React.FC = () => {
                 </Space>
                 <Typography.Text>{p.address}</Typography.Text>
                 <Space size={8}>
-                  <Tag>{p.type}</Tag>
+                  <Tag>{labelPremiseType(p.type)}</Tag>
                   <Tag>{p.area} м²</Tag>
-                  {p.rateType && <Tag>{p.rateType}{p.baseRate? ` ${p.baseRate}`: ''}</Tag>}
+                  {p.rateType && <Tag>{labelRateType(p.rateType)}{p.baseRate? ` ${p.baseRate}`: ''}</Tag>}
                 </Space>
                 <Divider style={{ margin: '8px 0' }} />
                 <Space>
                   <Button type="primary" disabled={p.status && p.status!=='FREE'} onClick={()=> reserve(p)}>Забронировать</Button>
-                  <Button disabled={p.status && p.status!=='FREE'} loading={processing===p.id} onClick={()=> rentAndPay(p)}>Арендовать и оплатить</Button>
                 </Space>
               </Space>
             </Card>

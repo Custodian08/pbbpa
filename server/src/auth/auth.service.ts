@@ -12,7 +12,8 @@ export class AuthService {
 
   async register(email: string, password: string, fullName?: string) {
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await this.users.createUser({ email, passwordHash, fullName, roleName: 'OPERATOR' });
+    // По умолчанию саморегистрация создаёт обычного пользователя (USER)
+    const user = await this.users.createUser({ email, passwordHash, fullName, roleName: 'USER' });
     return this.users.toSafe(user);
   }
 

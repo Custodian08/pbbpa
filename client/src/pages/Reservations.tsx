@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import dayjs, { Dayjs } from 'dayjs';
 import { useAuth } from '../modules/auth/AuthContext';
+import { labelReservationStatus } from '../i18n/labels';
 
  type Reservation = { id: string; premiseId: string; until: string; status: 'ACTIVE'|'EXPIRED'|'CANCELLED'; createdAt: string };
  type Premise = { id: string; code?: string | null; address: string };
@@ -72,7 +73,7 @@ import { useAuth } from '../modules/auth/AuthContext';
             return p ? (p.code ? `${p.code} — ${p.address}` : p.address) : r.premiseId;
           } },
           { title: 'До', dataIndex: 'until', render: (v)=> String(v).slice(0,10) },
-          { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='ACTIVE'?'blue':v==='CANCELLED'?'orange':'default'}>{v}</Tag> },
+          { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='ACTIVE'?'blue':v==='CANCELLED'?'orange':'default'}>{labelReservationStatus(v)}</Tag> },
           { title: 'Создано', dataIndex: 'createdAt', render: (v)=> String(v).replace('T',' ').slice(0,19) },
           { title: 'Действия', key: 'a', render: (_: any, r)=> (
             <Space>

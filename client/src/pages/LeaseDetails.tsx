@@ -4,6 +4,7 @@ import { api } from '../api';
 import { Card, Descriptions, Tabs, Table, Tag, Space, Button, App as AntApp, Modal, Form, DatePicker, InputNumber, Upload, Popconfirm } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../modules/auth/AuthContext';
+import { labelInvoiceStatus, labelLeaseStatus, labelPaymentSource, labelPaymentStatus, labelRateType } from '../i18n/labels';
 import { toPng } from 'html-to-image';
 
  type Lease = {
@@ -187,11 +188,11 @@ import { toPng } from 'html-to-image';
         <>
           <div ref={cardRef}>
             <Descriptions size="small" bordered column={2} style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="Статус"><Tag color={lease.status==='ACTIVE'?'green':lease.status==='DRAFT'?'default':lease.status==='TERMINATING'?'orange':'blue'}>{lease.status}</Tag></Descriptions.Item>
+              <Descriptions.Item label="Статус"><Tag color={lease.status==='ACTIVE'?'green':lease.status==='DRAFT'?'default':lease.status==='TERMINATING'?'orange':'blue'}>{labelLeaseStatus(lease.status)}</Tag></Descriptions.Item>
               <Descriptions.Item label="Арендатор">{lease.tenant?.name}</Descriptions.Item>
               <Descriptions.Item label="Помещение">{lease.premise?.code ? `${lease.premise.code} — ${lease.premise.address}` : lease.premise?.address}</Descriptions.Item>
               <Descriptions.Item label="Период">{String(lease.periodFrom).slice(0,10)} — {lease.periodTo? String(lease.periodTo).slice(0,10): ''}</Descriptions.Item>
-              <Descriptions.Item label="База">{lease.base}</Descriptions.Item>
+              <Descriptions.Item label="База">{labelRateType(lease.base)}</Descriptions.Item>
               <Descriptions.Item label="Оплата, день">{lease.dueDay}</Descriptions.Item>
             </Descriptions>
           </div>
@@ -225,7 +226,7 @@ import { toPng } from 'html-to-image';
                     columns={[
                       { title: '№', dataIndex: 'number' },
                       { title: 'Дата', dataIndex: 'date', render: (v)=> String(v).slice(0,10) },
-                      { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag>{v}</Tag> },
+                      { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='PAID'?'green':v==='PARTIALLY_PAID'?'orange':v==='OVERDUE'?'red':'default'}>{labelInvoiceStatus(v)}</Tag> },
                       { title: 'Действия', key: 'a', render: (_: any, r)=> (
                         <Space>
                           <Button size="small" onClick={()=> downloadInvoicePdf(r.id, r.number)}>Счет (PDF)</Button>
@@ -252,8 +253,8 @@ import { toPng } from 'html-to-image';
                     columns={[
                       { title: 'Дата', dataIndex: 'date', render: (v)=> String(v).slice(0,10) },
                       { title: 'Сумма', dataIndex: 'amount' },
-                      { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag>{v}</Tag> },
-                      { title: 'Источник', dataIndex: 'source' },
+                      { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='APPLIED'?'green':v==='UNRESOLVED'?'orange':v==='REFUNDED'?'red':'default'}>{labelPaymentStatus(v)}</Tag> },
+                      { title: 'Источник', dataIndex: 'source', render: (v)=> labelPaymentSource(v) },
                     ]}
                   />
                 )

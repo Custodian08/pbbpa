@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Table, Tag, Button, Space, App as AntApp } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { labelReservationStatus } from '../i18n/labels';
 
  type MyReservation = {
   id: string;
@@ -40,7 +41,7 @@ export const MyReservationsPage: React.FC = () => {
         columns={[
           { title: 'Помещение', dataIndex: 'premiseId', render: (_: any, r)=> r.premise ? (r.premise.code ? `${r.premise.code} — ${r.premise.address}` : r.premise.address) : r.premiseId },
           { title: 'До', dataIndex: 'until', render: (v)=> String(v).slice(0,10) },
-          { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='ACTIVE'?'blue':v==='CANCELLED'?'orange':'default'}>{v}</Tag> },
+          { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='ACTIVE'?'blue':v==='CANCELLED'?'orange':'default'}>{labelReservationStatus(v)}</Tag> },
           { title: 'Создано', dataIndex: 'createdAt', render: (v)=> String(v).replace('T',' ').slice(0,19) },
           { title: 'Действия', key: 'a', render: (_: any, r)=> (
             <Space>

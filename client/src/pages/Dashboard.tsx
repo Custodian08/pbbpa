@@ -17,9 +17,9 @@ type Kpi = { accrualMonth: number; paymentsMonth: number; agingTotal: number; oc
 
   const monthlyData = (monthly || []).map((r) => ({ period: String(r.period).slice(0,7), accruals: r.accruals, payments: r.payments }));
   const occPie = occ ? [
-    { name: 'Rented', value: occ.rented, color: '#3f8600' },
-    { name: 'Reserved', value: occ.reserved, color: '#faad14' },
-    { name: 'Free', value: occ.free, color: '#1677ff' },
+    { name: 'Сдано', value: occ.rented, color: '#3f8600' },
+    { name: 'Забронировано', value: occ.reserved, color: '#faad14' },
+    { name: 'Свободно', value: occ.free, color: '#1677ff' },
   ] : [];
 
   return (
@@ -34,7 +34,7 @@ type Kpi = { accrualMonth: number; paymentsMonth: number; agingTotal: number; oc
         <Card><Statistic title="Резерв" value={occ?.reserved ?? 0} /></Card>
       </Col>
       <Col xs={24} sm={12} md={6}>
-        <Card><Statistic title="Occupancy" valueStyle={{ color: '#3f8600' }} value={(occ?.occupancy ?? 0) * 100} precision={1} suffix="%" /></Card>
+        <Card><Statistic title="Загрузка (Occupancy)" valueStyle={{ color: '#3f8600' }} value={(occ?.occupancy ?? 0) * 100} precision={1} suffix="%" /></Card>
       </Col>
 
       <Col xs={24} sm={12} md={8}>
@@ -66,7 +66,7 @@ type Kpi = { accrualMonth: number; paymentsMonth: number; agingTotal: number; oc
       </Col>
 
       <Col xs={24} md={8}>
-        <Card title="Загрузка (Occupancy)">
+        <Card title="Загрузка по типам статусов">
           <div style={{ width: '100%', height: 280 }}>
             <ResponsiveContainer>
               <PieChart>
@@ -82,7 +82,7 @@ type Kpi = { accrualMonth: number; paymentsMonth: number; agingTotal: number; oc
       </Col>
 
       <Col span={24}>
-        <Card title="Начисления/Оплаты по месяцам">
+        <Card title="Начисления / Оплаты по месяцам">
           <Table<MonthlyRow>
             rowKey={(r)=> r.period}
             size="small"
