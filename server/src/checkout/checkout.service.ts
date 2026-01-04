@@ -43,6 +43,7 @@ export class CheckoutService {
           date: now,
           premiseId: premise.id,
           tenantId,
+          createdByUserId: userId,
           periodFrom,
           periodTo,
           base: premise.rateType as RateType,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Table, Tag, Button, Space, App as AntApp } from 'antd';
+import { labelInvoiceStatus } from '../i18n/labels';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 
@@ -32,7 +33,7 @@ export const MyInvoicesPage: React.FC = () => {
           { title: '№', dataIndex: 'number' },
           { title: 'Дата', dataIndex: 'date', render: (v)=> String(v).slice(0,10) },
           { title: 'Сумма', dataIndex: ['accrual','total'] },
-          { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='PAID'?'green':v==='OVERDUE'?'red':v==='PARTIALLY_PAID'?'orange':'default'}>{v}</Tag> },
+          { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='PAID'?'green':v==='OVERDUE'?'red':v==='PARTIALLY_PAID'?'orange':'default'}>{labelInvoiceStatus(v)}</Tag> },
           { title: 'Действия', key: 'a', render: (_: any, r)=> (
             <Space>
               {r.status!=='PAID' && <Button type="primary" size="small" loading={payMutation.isPending} onClick={()=> payMutation.mutate(r.id)}>Оплатить</Button>}

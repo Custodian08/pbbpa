@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Menu, Button, Flex } from 'antd';
-import { ShopOutlined, TeamOutlined, LogoutOutlined, FileTextOutlined, FileDoneOutlined, FileSyncOutlined, HomeOutlined, CalendarOutlined } from '@ant-design/icons';
+import { ShopOutlined, TeamOutlined, LogoutOutlined, FileTextOutlined, FileDoneOutlined, FileSyncOutlined, HomeOutlined, CalendarOutlined, LinkOutlined, SettingOutlined, AuditOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
@@ -51,10 +51,10 @@ export const AppLayout: React.FC = () => {
               <Menu.Item key="leases" icon={<FileTextOutlined />}> <Link to="/leases">Договоры</Link> </Menu.Item>
               <Menu.Item key="invoices" icon={<FileDoneOutlined />}> <Link to="/invoices">Счета</Link> </Menu.Item>
               <Menu.Item key="payments" icon={<FileSyncOutlined />}> <Link to="/payments">Платежи</Link> </Menu.Item>
-              {isAdmin && <Menu.Item key="admin-users"> <Link to="/admin/users">Пользователи</Link> </Menu.Item>}
-              {isAdmin && <Menu.Item key="admin-link-tenant"> <Link to="/admin/link-tenant">Привязка контрагента</Link> </Menu.Item>}
-              {isAdmin && <Menu.Item key="admin-settings"> <Link to="/admin/settings">Настройки</Link> </Menu.Item>}
-              {isAdmin && <Menu.Item key="admin-audit"> <Link to="/admin/audit">Аудит</Link> </Menu.Item>}
+              {isAdmin && <Menu.Item key="admin-users" icon={<TeamOutlined />}> <Link to="/admin/users">Пользователи</Link> </Menu.Item>}
+              {isAdmin && <Menu.Item key="admin-link-tenant" icon={<LinkOutlined />}> <Link to="/admin/link-tenant">Привязка контрагента</Link> </Menu.Item>}
+              {isAdmin && <Menu.Item key="admin-settings" icon={<SettingOutlined />}> <Link to="/admin/settings">Настройки</Link> </Menu.Item>}
+              {isAdmin && <Menu.Item key="admin-audit" icon={<AuditOutlined />}> <Link to="/admin/audit">Аудит</Link> </Menu.Item>}
             </>
           )}
           {isBasicUser && (

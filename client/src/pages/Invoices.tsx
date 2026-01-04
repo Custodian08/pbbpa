@@ -37,6 +37,18 @@ export const InvoicesPage: React.FC = () => {
     }})).data,
   });
 
+  const invoiceStatusLabel = (s?: string) => {
+    switch (s) {
+      case 'DRAFT': return 'Черновик';
+      case 'SENT': return 'Отправлен';
+      case 'PAID': return 'Оплачен';
+      case 'PARTIALLY_PAID': return 'Частично оплачен';
+      case 'OVERDUE': return 'Просрочен';
+      case 'CANCELLED': return 'Отменен';
+      default: return s || '';
+    }
+  };
+
   const runBilling = useMutation({
     mutationFn: async () => (await api.post('/billing/run', { period: periodStr! })).data,
     onSuccess: async (res) => {
@@ -85,12 +97,12 @@ export const InvoicesPage: React.FC = () => {
           <Input allowClear placeholder="Поиск по номеру" value={q} onChange={(e)=> setQ(e.target.value)} style={{ width: 200 }} />
           <Select allowClear placeholder="Статус" value={status} onChange={setStatus} style={{ width: 180 }}
             options={[
-              { value: 'DRAFT', label: 'DRAFT' },
-              { value: 'SENT', label: 'SENT' },
-              { value: 'PARTIALLY_PAID', label: 'PARTIALLY_PAID' },
-              { value: 'PAID', label: 'PAID' },
-              { value: 'OVERDUE', label: 'OVERDUE' },
-              { value: 'CANCELLED', label: 'CANCELLED' },
+              { value: 'DRAFT', label: 'Черновик' },
+              { value: 'SENT', label: 'Отправлен' },
+              { value: 'PARTIALLY_PAID', label: 'Частично оплачен' },
+              { value: 'PAID', label: 'Оплачен' },
+              { value: 'OVERDUE', label: 'Просрочен' },
+              { value: 'CANCELLED', label: 'Отменен' },
             ]}
           />
         </Space>
@@ -113,7 +125,7 @@ export const InvoicesPage: React.FC = () => {
           columns={[
             { title: '№', dataIndex: 'number' },
             { title: 'Дата', dataIndex: 'date', render: (v) => String(v).slice(0,10) },
-            { title: 'Статус', dataIndex: 'status', render: (v) => <Tag color={v==='PAID'?'green':v==='PARTIALLY_PAID'?'orange':v==='OVERDUE'?'red':'default'}>{v}</Tag> },
+            { title: 'Статус', dataIndex: 'status', render: (v) => <Tag color={v==='PAID'?'green':v==='PARTIALLY_PAID'?'orange':v==='OVERDUE'?'red':'default'}>{invoiceStatusLabel(v)}</Tag> },
             { title: 'Действия', key: 'actions', render: (_: any, r) => (
               <Space>
                 <Button size="small" onClick={() => exportPdf(r.id, r.number)}>PDF</Button>

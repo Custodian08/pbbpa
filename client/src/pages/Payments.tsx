@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import dayjs, { Dayjs } from 'dayjs';
 import { toPng } from 'html-to-image';
+import { labelPaymentStatus, labelPaymentSource } from '../i18n/labels';
 
  type Payment = {
   id: string;
@@ -121,10 +122,10 @@ const refundPayment = useMutation({
       <Space style={{ marginBottom: 12 }} wrap>
         <Input allowClear placeholder="Поиск: арендатор/счёт" value={q} onChange={(e)=> setQ(e.target.value)} style={{ width: 260 }} />
         <Select allowClear placeholder="Статус" value={status} onChange={setStatus} style={{ width: 160 }} options={[
-          { label: 'PENDING', value: 'PENDING' },
-          { label: 'APPLIED', value: 'APPLIED' },
-          { label: 'UNRESOLVED', value: 'UNRESOLVED' },
-          { label: 'REFUNDED', value: 'REFUNDED' },
+          { label: 'В обработке', value: 'PENDING' },
+          { label: 'Зачтен', value: 'APPLIED' },
+          { label: 'Не сопоставлен', value: 'UNRESOLVED' },
+          { label: 'Возврат', value: 'REFUNDED' },
         ]} />
         <Select allowClear placeholder="Источник" value={source} onChange={setSource} style={{ width: 160 }} options={sources} />
         <DatePicker.RangePicker value={dateRange as any} onChange={(v)=> setDateRange(v as any)} format="YYYY-MM-DD" />
@@ -144,8 +145,8 @@ const refundPayment = useMutation({
             { title: 'Арендатор', dataIndex: 'tenantId', render: (v)=> byId[v] || v },
             { title: 'Сумма', dataIndex: 'amount' },
             { title: 'Дата', dataIndex: 'date', render: (v)=> String(v).slice(0,10) },
-            { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='APPLIED'?'green':v==='UNRESOLVED'?'orange':'default'}>{v}</Tag> },
-            { title: 'Источник', dataIndex: 'source' },
+            { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='APPLIED'?'green':v==='UNRESOLVED'?'orange':v==='REFUNDED'?'red':'default'}>{labelPaymentStatus(v)}</Tag> },
+            { title: 'Источник', dataIndex: 'source', render: (v)=> labelPaymentSource(v) },
           ]}
         />
       </div>
@@ -179,7 +180,7 @@ const refundPayment = useMutation({
       { title: 'Дата', dataIndex: 'date', render: (v)=> String(v).slice(0,10) },
       { title: 'Арендатор', dataIndex: 'tenantId', render: (v)=> byId[v] || v },
       { title: 'Сумма', dataIndex: 'amount' },
-      { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color="orange">{v}</Tag> },
+      { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color="orange">{labelPaymentStatus(v)}</Tag> },
       { title: 'Действия', key: 'a', render: (_: any, r)=> (
         <Space.Compact block>
           <Form form={applyForm} layout="inline" onFinish={(v)=> applyPayment.mutate({ id: r.id, invoiceNumber: v.invoiceNumber })} style={{ width: '100%' }}>

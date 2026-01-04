@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router-dom';
+import { labelLeaseStatus, labelRateType } from '../i18n/labels';
 
 // Types matching backend includes
 type Lease = {
@@ -136,7 +137,7 @@ export const LeasesPage: React.FC = () => {
       <Space style={{ marginBottom: 12 }} wrap>
         <Input.Search allowClear placeholder="Поиск: арендатор/помещение/№" value={q} onChange={(e)=> setQ(e.target.value)} style={{ width: 320 }} />
         <Select allowClear placeholder="Статус" value={status} onChange={setStatus} style={{ width: 180 }}
-          options={[{value:'DRAFT',label:'DRAFT'},{value:'ACTIVE',label:'ACTIVE'},{value:'TERMINATING',label:'TERMINATING'},{value:'CLOSED',label:'CLOSED'}]} />
+          options={[{value:'DRAFT',label:'Черновик'},{value:'ACTIVE',label:'Активен'},{value:'TERMINATING',label:'На расторжении'},{value:'CLOSED',label:'Закрыт'}]} />
       </Space>
       <Table<Lease>
         rowKey="id"
@@ -145,10 +146,10 @@ export const LeasesPage: React.FC = () => {
         pagination={{ pageSize: 10 }}
         columns={[
           { title: '№', dataIndex: 'number' },
-          { title: 'Статус', dataIndex: 'status', render: (v) => <Tag color={v==='ACTIVE'?'green':v==='DRAFT'?'default':v==='TERMINATING'?'orange':'blue'}>{v}</Tag> },
+          { title: 'Статус', dataIndex: 'status', render: (v) => <Tag color={v==='ACTIVE'?'green':v==='DRAFT'?'default':v==='TERMINATING'?'orange':'blue'}>{labelLeaseStatus(v)}</Tag> },
           { title: 'Помещение', dataIndex: ['premise','address'], render: (_: any, r) => r.premise?.code ? `${r.premise.code} — ${r.premise.address}` : r.premise?.address },
           { title: 'Арендатор', dataIndex: ['tenant','name'], render: (_: any, r) => r.tenant?.name },
-          { title: 'База', dataIndex: 'base' },
+          { title: 'База', dataIndex: 'base', render: (v) => labelRateType(v) },
           { title: 'Период с', dataIndex: 'periodFrom', render: (v) => String(v).slice(0,10) },
           { title: 'по', dataIndex: 'periodTo', render: (v) => (v ? String(v).slice(0,10) : '') },
           { title: 'Срок оплаты, день', dataIndex: 'dueDay' },

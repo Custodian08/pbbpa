@@ -3,6 +3,7 @@ import { Card, Table, Tag, Space } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { Link } from 'react-router-dom';
+import { labelLeaseStatus } from '../i18n/labels';
 
  type Lease = {
   id: string;
@@ -26,7 +27,7 @@ export const MyLeasesPage: React.FC = () => {
         pagination={{ pageSize: 10 }}
         columns={[
           { title: '№', dataIndex: 'number' },
-          { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='ACTIVE'?'green':v==='DRAFT'?'default':v==='TERMINATING'?'orange':'blue'}>{v}</Tag> },
+          { title: 'Статус', dataIndex: 'status', render: (v)=> <Tag color={v==='ACTIVE'?'green':v==='DRAFT'?'default':v==='TERMINATING'?'orange':'blue'}>{labelLeaseStatus(v)}</Tag> },
           { title: 'Помещение', dataIndex: ['premise','address'], render: (_: any, r)=> r.premise?.code ? `${r.premise.code} — ${r.premise.address}` : r.premise?.address },
           { title: 'Период с', dataIndex: 'periodFrom', render: (v)=> String(v).slice(0,10) },
           { title: 'по', dataIndex: 'periodTo', render: (v)=> v? String(v).slice(0,10) : '' },
