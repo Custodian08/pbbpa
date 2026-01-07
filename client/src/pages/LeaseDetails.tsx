@@ -89,6 +89,7 @@ import { toPng } from 'html-to-image';
   const uploadSignedProps = {
     name: 'file',
     showUploadList: false,
+    accept: '.pdf,application/pdf',
     customRequest: async (opts: any) => {
       try {
         const form = new FormData();

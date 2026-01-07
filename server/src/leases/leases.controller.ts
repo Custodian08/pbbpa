@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Res, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { LeasesService } from './leases.service';
 import { CreateLeaseDto } from './dto/create-lease.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -108,13 +108,20 @@ export class LeasesController {
         const safe = String(file.originalname || 'signed.pdf').replace(/[^a-zA-Z0-9_.-]+/g, '_');
         cb(null, `${stamp}__${safe}`);
       },
-    })
+    }),
+    fileFilter: (_req: any, file: any, cb: (err: Error | null, acceptFile: boolean) => void) => {
+      const ok = (file?.mimetype || '').includes('pdf') || /\.pdf$/i.test(file?.originalname || '');
+      cb(ok ? null : new Error('ONLY_PDF_ALLOWED'), ok);
+    },
   }))
   async uploadSigned(
     @Param('id') id: string,
     @UploadedFile() file: any,
     @Body() body: { by?: string },
   ) {
+    if (!file) {
+      throw new BadRequestException('Допускается загрузка только PDF');
+    }
     return this.service.markSigned(id, { by: body?.by, fileName: file.filename });
   }
 
@@ -124,8 +131,11 @@ export class LeasesController {
     if (!lease.signedFileName) return res.status(404).send('No signed file');
     const p = path.join(process.cwd(), 'uploads', 'leases', id, lease.signedFileName);
     if (!fs.existsSync(p)) return res.status(404).send('File not found');
-    res.setHeader('Content-Type', 'application/pdf');
+    const isPdf = path.extname(p).toLowerCase() === '.pdf';
+    const stat = fs.statSync(p);
+    res.setHeader('Content-Type', isPdf ? 'application/pdf' : 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${lease.signedFileName}"`);
+    res.setHeader('Content-Length', String(stat.size));
     fs.createReadStream(p).pipe(res);
   }
 
